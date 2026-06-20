@@ -1,0 +1,26 @@
+{
+  "name": "bottt-party",
+  "version": "1.0.0",
+  "description": "An Avatar-Driven Real-Time Party Game",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LWVader/Bottt-Party.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/LWVader/Bottt-Party/issues"
+  },
+  "homepage": "https://github.com/LWVader/Bottt-Party#readme",
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.3"
+  }
+}
