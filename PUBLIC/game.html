@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Bottts</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- TOP BAR ACTIVE ROOM CODE HEADER (Hidden in Login) -->
+    <div id="roomHeader" class="hidden mb-6 bg-slate-800/80 border border-slate-700/60 rounded-full px-5 py-2 flex items-center gap-3 shadow-lg max-w-sm w-full justify-between">
+        <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Room:</span>
+            <span id="roomCodeBadge" class="font-black text-indigo-400 tracking-widest text-lg">----</span>
+        </div>
+        <button id="copyRoomBtn" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1">
+            <span>Copy Link</span> 📋
+        </button>
+    </div>
+
+    <!-- JOIN ROOM & LOBBY SCREEN -->
+    <div id="joinForm" class="w-full max-w-sm space-y-6">
+        <h2 class="text-3xl font-black text-center text-indigo-400 mb-6">Word Bottts</h2>
+        
+        <!-- Option A: Start a brand new session -->
+        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50 space-y-3">
+            <h3 class="text-sm font-bold text-indigo-300 uppercase tracking-wider">Start a New Game</h3>
+            <input id="creatorNickInput" type="text" placeholder="YOUR NICKNAME" class="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl font-medium text-center uppercase tracking-wider focus:outline-none focus:border-indigo-500">
+            <button id="createRoomBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 p-3 rounded-xl font-bold text-md transition shadow-lg">Create & Launch Room 🚀</button>
+        </div>
+
+        <div class="relative flex py-2 items-center">
+            <div class="flex-grow border-t border-slate-800"></div>
+            <span class="flex-shrink mx-4 text-slate-500 text-sm font-bold">OR</span>
+            <div class="flex-grow border-t border-slate-800"></div>
+        </div>
+
+        <!-- Option B: Join an existing session -->
+        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50 space-y-3">
+            <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider">Join Friends</h3>
+            <input id="roomInput" type="text" maxlength="4" placeholder="ROOM CODE" class="w-full uppercase bg-slate-900 border border-slate-700 p-3 rounded-xl text-center font-bold tracking-widest text-xl focus:outline-none focus:border-indigo-500">
+            <input id="nickInput" type="text" placeholder="YOUR NICKNAME" class="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl font-medium text-center uppercase tracking-wider focus:outline-none focus:border-indigo-500">
+            <button id="joinBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded-xl font-bold text-md transition shadow-lg">Enter Existing Lobby</button>
+        </div>
+    </div>
+
+    <!-- INTERMEDIATE WAITING SCREEN -->
+    <div id="waitingScreen" class="hidden text-center space-y-4 w-full max-w-sm">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400 mx-auto"></div>
+        <h2 class="text-xl font-bold text-slate-300">Synchronizing Session...</h2>
+        <p class="text-sm text-slate-500">Preparing the next digital puzzle blueprint.</p>
+    </div>
+
+    <!-- INTEGRATED PLAYER ACTIVE PUZZLE SCREEN -->
+    <div id="playerPuzzleScreen" class="hidden w-full max-w-md space-y-6 text-center">
+        <h2 class="text-2xl font-black text-indigo-400">Who or What is this Avatar? 🧐</h2>
+        
+        <!-- Puzzle Asset Box embedded right on the player's device -->
+        <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-2xl flex flex-col items-center space-y-4">
+            <img id="puzzleImg" src="" class="w-48 h-48 object-contain" alt="Puzzle Blueprint">
+            <p id="clueText" class="text-md italic text-slate-300 bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-700/50 w-full"></p>
+        </div>
+
+        <div id="letterBank" class="flex justify-center flex-wrap gap-2 py-4 px-2 bg-slate-800/40 border border-slate-700/40 rounded-2xl min-h-[70px] items-center"></div>
+        
+        <input id="guessInput" type="text" placeholder="TYPE DECODED ANSWER HERE" class="w-full bg-slate-800 border border-slate-700 p-4 rounded-xl text-lg font-bold tracking-widest text-center uppercase focus:outline-none focus:border-indigo-500">
+        <button id="submitGuessBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded-xl font-bold text-lg transition shadow-lg">Submit Guess 🎯</button>
+    </div>
+
+    <!-- ROUND END RESULTS SCREEN -->
+    <div id="resultsScreen" class="hidden text-center space-y-6 w-full max-w-sm">
+        <h1 class="text-4xl font-black text-emerald-400">Round Over! 🏆</h1>
+        <p class="text-xl">The secret word was: <span id="correctWordDisplay" class="font-bold text-indigo-300 tracking-widest bg-slate-800 px-4 py-1 rounded-lg border border-slate-700">---</span></p>
+        <div id="resultsBox" class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-3 shadow-xl"></div>
+        <p class="text-sm text-slate-400 animate-pulse">Next round starting shortly...</p>
+    </div>
+
+    <!-- INTEGRATED PERMANENT ROSTER/LIVE SCORE DATA SCREEN -->
+    <div id="controllerDashboard" class="hidden w-full max-w-sm mt-8 border-t border-slate-800 pt-6">
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 space-y-3">
+            <div class="flex justify-between items-center border-b border-slate-700/50 pb-2">
+                <h3 class="text-md font-bold tracking-wider text-slate-400 uppercase font-semibold">Standings</h3>
+                <span class="text-xs bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-500/20">Live Roster</span>
+            </div>
+            <div id="playerScoreboardList" class="space-y-2 max-h-40 overflow-y-auto text-sm"></div>
+        </div>
+        <div class="text-center mt-4">
+            <button id="leaveRoomBtn" class="text-sm font-semibold text-rose-400 hover:text-rose-300 underline transition">
+                Leave Game Session 👋
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let currentRoomCode = "";
+
+        const roomHeader = document.getElementById('roomHeader');
+        const roomCodeBadge = document.getElementById('roomCodeBadge');
+        const copyRoomBtn = document.getElementById('copyRoomBtn');
+
+        const joinForm = document.getElementById('joinForm');
+        const waitingScreen = document.getElementById('waitingScreen');
+        const playerPuzzleScreen = document.getElementById('playerPuzzleScreen');
+        const resultsScreen = document.getElementById('resultsScreen');
+        const controllerDashboard = document.getElementById('controllerDashboard');
+        const playerScoreboardList = document.getElementById('playerScoreboardList');
+        
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const creatorNickInput = document.getElementById('creatorNickInput');
+        const joinBtn = document.getElementById('joinBtn');
+        const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+        const roomInput = document.getElementById('roomInput');
+        const nickInput = document.getElementById('nickInput');
+        
+        const puzzleImg = document.getElementById('puzzleImg');
+        const clueText = document.getElementById('clueText');
+        const letterBank = document.getElementById('letterBank');
+        const guessInput = document.getElementById('guessInput');
+        const submitGuessBtn = document.getElementById('submitGuessBtn');
+        
+        const correctWordDisplay = document.getElementById('correctWordDisplay');
+        const resultsBox = document.getElementById('resultsBox');
+
+        const socket = io();
+
+        // Check URL parameter for auto-filling shared room codes
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRoom = urlParams.get('room');
+        if (urlRoom) {
+            roomInput.value = urlRoom.toUpperCase();
+        }
+
+        // Click to copy handler
+        copyRoomBtn.addEventListener('click', () => {
+            if (!currentRoomCode) return;
+            const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomCode}`;
+            navigator.clipboard.writeText(shareUrl).then(() => {
+                copyRoomBtn.innerText = "Copied! ✅";
+                setTimeout(() => { copyRoomBtn.innerText = "Copy Link 📋"; }, 2000);
+            }).catch(() => {
+                navigator.clipboard.writeText(currentRoomCode);
+                copyRoomBtn.innerText = "Code Copied! ✅";
+                setTimeout(() => { copyRoomBtn.innerText = "Copy Link 📋"; }, 2000);
+            });
+        });
+
+        createRoomBtn.addEventListener('click', () => {
+            const nickname = creatorNickInput.value.trim().toUpperCase();
+            if (nickname) {
+                socket.emit('hostless-create-room', { nickname });
+            } else {
+                alert("Please type a nickname to launch your game!");
+            }
+        });
+
+        joinBtn.addEventListener('click', () => {
+            const roomCode = roomInput.value.trim().toUpperCase();
+            const nickname = nickInput.value.trim().toUpperCase();
+            if (roomCode && nickname) socket.emit('join-room', { roomCode, nickname });
+        });
+
+        leaveRoomBtn.addEventListener('click', () => {
+            if(confirm("Are you sure you want to leave this game room? Your score data will be wiped.")) {
+                window.location.href = window.location.pathname; // strip URL params and refresh
+            }
+        });
+
+        socket.on('player-joined-success', ({ roomCode }) => {
+            currentRoomCode = roomCode;
+            roomCodeBadge.innerText = roomCode;
+            
+            joinForm.classList.add('hidden'); 
+            resultsScreen.classList.add('hidden');
+            roomHeader.classList.remove('hidden');
+            waitingScreen.classList.remove('hidden');
+            controllerDashboard.classList.remove('hidden');
+        });
+
+        socket.on('player-start-puzzle', ({ scrambledLetters, avatarUrl, clue }) => {
+            waitingScreen.classList.add('hidden');
+            resultsScreen.classList.add('hidden');
+            playerPuzzleScreen.classList.remove('hidden');
+            
+            guessInput.value = '';
+            guessInput.disabled = false;
+            submitGuessBtn.disabled = false;
+            submitGuessBtn.innerText = "Submit Guess 🎯";
+            submitGuessBtn.className = "w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded-xl font-bold text-lg transition shadow-lg";
+
+            if (avatarUrl) puzzleImg.src = avatarUrl;
+            if (clue) clueText.innerText = `Hint: ${clue}`;
+
+            letterBank.innerHTML = '';
+            scrambledLetters.split('').forEach(char => {
+                letterBank.innerHTML += `<span class="bg-indigo-600/20 text-indigo-300 font-black border border-indigo-500/30 w-10 h-10 flex items-center justify-center text-xl rounded-lg shadow">${char}</span>`;
+            });
+        });
+
+        submitGuessBtn.addEventListener('click', () => {
+            const answer = guessInput.value.trim().toUpperCase();
+            if (!answer) return;
+
+            socket.emit('submit-guess', { guess: answer });
+            
+            guessInput.disabled = true;
+            submitGuessBtn.disabled = true;
+            submitGuessBtn.innerText = "Answer Locked In! 🔒";
+            submitGuessBtn.className = "w-full bg-slate-700 p-3 rounded-xl font-bold text-lg cursor-not-allowed text-slate-400";
+        });
+
+        socket.on('guess-result', ({ feedback }) => {
+            letterBank.innerHTML = `<p class="text-xl font-black text-center w-full tracking-wider">${feedback}</p>`;
+        });
+
+        socket.on('reveal-results', ({ scoreboard, correctWord }) => {
+            playerPuzzleScreen.classList.add('hidden');
+            waitingScreen.classList.add('hidden');
+            resultsScreen.classList.remove('hidden');
+            
+            correctWordDisplay.innerText = correctWord;
+            resultsBox.innerHTML = '';
+
+            scoreboard.forEach((p, idx) => {
+                resultsBox.innerHTML += `
+                    <div class="flex justify-between items-center bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 font-bold text-md">
+                        <span>#${idx+1} ${p.nickname}</span>
+                        <span class="text-emerald-400">${p.score} pts</span>
+                    </div>`;
+            });
+        });
+
+        socket.on('update-player-scores', ({ standings }) => {
+            playerScoreboardList.innerHTML = '';
+            standings.forEach(p => {
+                playerScoreboardList.innerHTML += `
+                    <div class="flex justify-between items-center text-slate-300">
+                        <span class="font-medium">${p.nickname}</span>
+                        <span class="font-bold text-indigo-400">${p.score} pts</span>
+                    </div>`;
+            });
+        });
+
+        socket.on('error-message', (msg) => alert(msg));
+    </script>
+</body>
+</html>
