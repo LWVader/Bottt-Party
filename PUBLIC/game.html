@@ -6,90 +6,186 @@
     <title>Word Bottts</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap');
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #0b0214;
+            background-image: radial-gradient(circle at center, #1b0833 0%, #05010a 100%);
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        /* 3D Spin and Neon Glow for the Dice */
+        @keyframes spin3d {
+            0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); filter: drop-shadow(0 0 10px #f43f5e) drop-shadow(0 0 20px #06b6d4); }
+            50% { transform: rotateX(180deg) rotateY(180deg) rotateZ(90deg) scale(1.1); filter: drop-shadow(0 0 20px #f43f5e) drop-shadow(0 0 30px #06b6d4); }
+            100% { transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg) scale(1); filter: drop-shadow(0 0 10px #f43f5e) drop-shadow(0 0 20px #06b6d4); }
+        }
+        
+        .spin-dice {
+            transform-style: preserve-3d;
+            animation: spin3d 12s linear infinite;
+        }
+        .dice-delay-1 { animation-duration: 9s; }
+        .dice-delay-2 { animation-duration: 15s; }
+        .dice-delay-3 { animation-duration: 18s; }
+
+        /* Custom Synthwave Glow Utilities */
+        .neon-border-pink {
+            border: 2px solid #f43f5e;
+            box-shadow: 0 0 15px rgba(244, 63, 94, 0.4), inset 0 0 10px rgba(244, 63, 94, 0.2);
+        }
+        
+        .neon-border-cyan {
+            border: 1.5px solid #06b6d4;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.3), inset 0 0 10px rgba(6, 182, 212, 0.15);
+        }
+
+        .neon-text-pink {
+            text-shadow: 0 0 8px rgba(244, 63, 94, 0.8), 0 0 15px rgba(244, 63, 94, 0.4);
+        }
+
+        .neon-text-cyan {
+            text-shadow: 0 0 8px rgba(6, 182, 212, 0.8), 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+<body class="text-white min-h-screen flex flex-col items-center justify-center p-4 relative overflow-x-hidden">
 
-    <!-- TOP BAR ACTIVE ROOM CODE HEADER (Hidden in Login) -->
-    <div id="roomHeader" class="hidden mb-6 bg-slate-800/80 border border-slate-700/60 rounded-full px-5 py-2 flex items-center gap-3 shadow-lg max-w-sm w-full justify-between">
-        <div class="flex items-center gap-2">
-            <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Room:</span>
-            <span id="roomCodeBadge" class="font-black text-indigo-400 tracking-widest text-lg">----</span>
-        </div>
-        <button id="copyRoomBtn" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1">
-            <span>Copy Link</span> 📋
-        </button>
+    <!-- LEFT SPINNING NEON DICE COLUMN -->
+    <div class="fixed left-1 sm:left-4 xl:left-12 top-0 bottom-0 flex flex-col justify-around py-6 sm:py-12 w-8 sm:w-16 xl:w-20 pointer-events-none select-none z-0 opacity-60 sm:opacity-100">
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice">🎲</div>
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice dice-delay-1">🎲</div>
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice dice-delay-2">🎲</div>
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice dice-delay-3">🎲</div>
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice dice-delay-1">🎲</div>
     </div>
 
-    <!-- JOIN ROOM & LOBBY SCREEN -->
-    <div id="joinForm" class="w-full max-w-sm space-y-6">
-        <h2 class="text-3xl font-black text-center text-indigo-400 mb-6">Word Bottts</h2>
+    <!-- RIGHT SPINNING NEON DICE COLUMN -->
+    <div class="fixed right-1 sm:right-4 xl:right-12 top-0 bottom-0 flex flex-col justify-around py-6 sm:py-12 w-8 sm:w-16 xl:w-20 pointer-events-none select-none z-0 opacity-60 sm:opacity-100">
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice dice-delay-3">🎲</div>
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice dice-delay-2">🎲</div>
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice dice-delay-1">🎲</div>
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice">🎲</div>
+        <div class="text-2xl xs:text-3xl sm:text-4xl xl:text-6xl spin-dice dice-delay-2">🎲</div>
+    </div>
+
+    <!-- MAIN INTERACTIVE CONTENT -->
+    <div class="relative z-10 flex flex-col items-center justify-center w-full max-w-md">
         
-        <!-- Option A: Start a brand new session -->
-        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50 space-y-3">
-            <h3 class="text-sm font-bold text-indigo-300 uppercase tracking-wider">Start a New Game</h3>
-            <input id="creatorNickInput" type="text" placeholder="YOUR NICKNAME" class="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl font-medium text-center uppercase tracking-wider focus:outline-none focus:border-indigo-500">
-            <button id="createRoomBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 p-3 rounded-xl font-bold text-md transition shadow-lg">Create & Launch Room 🚀</button>
-        </div>
+        <!-- MAIN TITLE (SWAPPED TO TOP) -->
+        <h1 class="text-5xl font-orbitron font-black text-center text-cyan-400 neon-text-cyan tracking-wider mb-6">Word Bottts</h1>
 
-        <div class="relative flex py-2 items-center">
-            <div class="flex-grow border-t border-slate-800"></div>
-            <span class="flex-shrink mx-4 text-slate-500 text-sm font-bold">OR</span>
-            <div class="flex-grow border-t border-slate-800"></div>
-        </div>
-
-        <!-- Option B: Join an existing session -->
-        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/50 space-y-3">
-            <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-wider">Join Friends</h3>
-            <input id="roomInput" type="text" maxlength="4" placeholder="ROOM CODE" class="w-full uppercase bg-slate-900 border border-slate-700 p-3 rounded-xl text-center font-bold tracking-widest text-xl focus:outline-none focus:border-indigo-500">
-            <input id="nickInput" type="text" placeholder="YOUR NICKNAME" class="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl font-medium text-center uppercase tracking-wider focus:outline-none focus:border-indigo-500">
-            <button id="joinBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded-xl font-bold text-md transition shadow-lg">Enter Existing Lobby</button>
-        </div>
-    </div>
-
-    <!-- INTERMEDIATE WAITING SCREEN -->
-    <div id="waitingScreen" class="hidden text-center space-y-4 w-full max-w-sm">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-400 mx-auto"></div>
-        <h2 class="text-xl font-bold text-slate-300">Synchronizing Session...</h2>
-        <p class="text-sm text-slate-500">Preparing the next digital puzzle blueprint.</p>
-    </div>
-
-    <!-- INTEGRATED PLAYER ACTIVE PUZZLE SCREEN -->
-    <div id="playerPuzzleScreen" class="hidden w-full max-w-md space-y-6 text-center">
-        <h2 class="text-2xl font-black text-indigo-400">Who or What is this Avatar? 🧐</h2>
-        
-        <!-- Puzzle Asset Box embedded right on the player's device -->
-        <div class="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-2xl flex flex-col items-center space-y-4">
-            <img id="puzzleImg" src="" class="w-48 h-48 object-contain" alt="Puzzle Blueprint">
-            <p id="clueText" class="text-md italic text-slate-300 bg-slate-900/50 px-4 py-2 rounded-xl border border-slate-700/50 w-full"></p>
-        </div>
-
-        <div id="letterBank" class="flex justify-center flex-wrap gap-2 py-4 px-2 bg-slate-800/40 border border-slate-700/40 rounded-2xl min-h-[70px] items-center"></div>
-        
-        <input id="guessInput" type="text" placeholder="TYPE DECODED ANSWER HERE" class="w-full bg-slate-800 border border-slate-700 p-4 rounded-xl text-lg font-bold tracking-widest text-center uppercase focus:outline-none focus:border-indigo-500">
-        <button id="submitGuessBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded-xl font-bold text-lg transition shadow-lg">Submit Guess 🎯</button>
-    </div>
-
-    <!-- ROUND END RESULTS SCREEN -->
-    <div id="resultsScreen" class="hidden text-center space-y-6 w-full max-w-sm">
-        <h1 class="text-4xl font-black text-emerald-400">Round Over! 🏆</h1>
-        <p class="text-xl">The secret word was: <span id="correctWordDisplay" class="font-bold text-indigo-300 tracking-widest bg-slate-800 px-4 py-1 rounded-lg border border-slate-700">---</span></p>
-        <div id="resultsBox" class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-3 shadow-xl"></div>
-        <p class="text-sm text-slate-400 animate-pulse">Next round starting shortly...</p>
-    </div>
-
-    <!-- INTEGRATED PERMANENT ROSTER/LIVE SCORE DATA SCREEN -->
-    <div id="controllerDashboard" class="hidden w-full max-w-sm mt-8 border-t border-slate-800 pt-6">
-        <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 space-y-3">
-            <div class="flex justify-between items-center border-b border-slate-700/50 pb-2">
-                <h3 class="text-md font-bold tracking-wider text-slate-400 uppercase font-semibold">Standings</h3>
-                <span class="text-xs bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-full border border-indigo-500/20">Live Roster</span>
+        <!-- ROOM CODE BOX (SWAPPED BELOW TITLE) -->
+        <div id="roomHeader" class="mb-8 neon-border-pink bg-black/60 rounded-full px-6 py-2.5 flex items-center justify-between gap-4 w-full max-w-xs transition-all duration-300">
+            <div class="flex items-center gap-1.5 text-sm font-orbitron font-bold">
+                <span class="text-gray-300">Room:</span>
+                <span id="roomCodeBadge" class="text-pink-500 neon-text-pink tracking-widest">[----]</span>
             </div>
-            <div id="playerScoreboardList" class="space-y-2 max-h-40 overflow-y-auto text-sm"></div>
-        </div>
-        <div class="text-center mt-4">
-            <button id="leaveRoomBtn" class="text-sm font-semibold text-rose-400 hover:text-rose-300 underline transition">
-                Leave Game Session 👋
+            <button id="copyRoomBtn" class="flex items-center gap-1 text-cyan-400 hover:text-cyan-200 text-xs font-orbitron font-bold uppercase tracking-wider transition">
+                <span>Copy Link</span>
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
             </button>
+        </div>
+
+        <!-- JOIN ROOM & LOBBY SCREEN -->
+        <div id="joinForm" class="w-full space-y-6">
+            
+            <!-- Start a New Game Panel -->
+            <div class="neon-border-cyan bg-[#0a041a]/95 p-5 rounded-2xl space-y-4">
+                <h3 class="text-md font-orbitron font-bold text-cyan-400 tracking-wider uppercase text-center">Start a New Game</h3>
+                <input id="creatorNickInput" type="text" placeholder="YOUR NICKNAME" class="w-full bg-[#12072b] border border-cyan-900 focus:border-cyan-500 p-3.5 rounded-xl font-bold text-center uppercase tracking-wider text-cyan-200 placeholder-cyan-900 focus:outline-none transition">
+                <button id="createRoomBtn" class="w-full bg-rose-500 hover:bg-rose-400 text-white font-orbitron font-bold tracking-wider py-3 px-4 rounded-xl transition transform active:scale-95 shadow-[0_0_15px_rgba(244,63,94,0.4)]">
+                    Create & Launch Room 🚀
+                </button>
+            </div>
+
+            <!-- OR Separator -->
+            <div class="relative flex py-2 items-center">
+                <div class="flex-grow border-t border-cyan-950/80"></div>
+                <span class="flex-shrink mx-4 text-pink-500 font-orbitron font-black text-sm neon-text-pink">OR</span>
+                <div class="flex-grow border-t border-cyan-950/80"></div>
+            </div>
+
+            <!-- Join Friends Panel -->
+            <div class="neon-border-cyan bg-[#0a041a]/95 p-5 rounded-2xl space-y-4">
+                <h3 class="text-md font-orbitron font-bold text-cyan-400 tracking-wider uppercase text-center">Join Friends</h3>
+                <input id="roomInput" type="text" maxlength="4" placeholder="ROOM CODE" class="w-full uppercase bg-[#12072b] border border-cyan-900 focus:border-cyan-500 p-3.5 rounded-xl text-center font-orbitron font-black tracking-widest text-2xl text-pink-500 placeholder-cyan-900 focus:outline-none transition">
+                <input id="nickInput" type="text" placeholder="YOUR NICKNAME" class="w-full bg-[#12072b] border border-cyan-900 focus:border-cyan-500 p-3.5 rounded-xl font-bold text-center uppercase tracking-wider text-cyan-200 placeholder-cyan-900 focus:outline-none transition">
+                <button id="joinBtn" class="w-full bg-cyan-400 hover:bg-cyan-300 text-black font-orbitron font-black tracking-wide py-3 px-4 rounded-xl transition transform active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+                    Enter Existing Lobby
+                </button>
+            </div>
+        </div>
+
+        <!-- WAITING SCREEN -->
+        <div id="waitingScreen" class="hidden text-center space-y-6 w-full py-10 neon-border-pink bg-[#0a041a]/90 rounded-2xl">
+            <div class="relative w-16 h-16 mx-auto">
+                <div class="absolute inset-0 rounded-full border-4 border-pink-500/20"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-pink-500 border-t-transparent animate-spin"></div>
+            </div>
+            <div class="space-y-2">
+                <h2 class="text-2xl font-orbitron font-bold text-pink-500 neon-text-pink uppercase tracking-wide">Waiting...</h2>
+                <p class="text-sm text-cyan-400/80">Preparing the next digital puzzle blueprint.</p>
+            </div>
+        </div>
+
+        <!-- ACTIVE PUZZLE SCREEN -->
+        <div id="playerPuzzleScreen" class="hidden w-full space-y-6">
+            
+            <!-- Main Neon Puzzle Card -->
+            <div class="neon-border-cyan bg-[#05010f]/95 p-6 rounded-2xl flex flex-col items-center space-y-5">
+                <h2 class="text-xl font-orbitron font-bold text-cyan-300 tracking-wide text-center uppercase">Who or What is this Avatar? 🤔</h2>
+                
+                <!-- Glowing Image Box -->
+                <div class="relative w-full aspect-square max-w-[260px] rounded-xl overflow-hidden border-2 border-pink-500/80 shadow-[0_0_20px_rgba(244,63,94,0.3)] bg-black/60 flex items-center justify-center p-4">
+                    <img id="puzzleImg" src="" class="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]" alt="Avatar Blueprint">
+                </div>
+                
+                <!-- Clue panel styled exactly like mockup footer -->
+                <p id="clueText" class="text-sm italic text-center text-pink-400/90 leading-relaxed max-w-xs font-semibold"></p>
+            </div>
+
+            <!-- Letter Bank Card -->
+            <div class="neon-border-cyan bg-[#0a041a]/95 p-4 rounded-xl space-y-2">
+                <div class="text-xs font-orbitron font-bold text-cyan-400 uppercase tracking-wider">Letter Bank</div>
+                <div id="letterBank" class="flex justify-center flex-wrap gap-2 py-2 min-h-[60px] items-center"></div>
+            </div>
+            
+            <!-- Guess Input Area -->
+            <div class="space-y-3">
+                <div class="text-xs font-orbitron font-bold text-cyan-400 uppercase tracking-wider pl-1">Guess</div>
+                <input id="guessInput" type="text" placeholder="Guess..." class="w-full bg-[#12072b] neon-border-cyan p-4 rounded-xl text-lg font-orbitron font-bold tracking-widest text-center uppercase text-pink-500 placeholder-cyan-950 focus:outline-none">
+                <button id="submitGuessBtn" class="w-full bg-rose-500 hover:bg-rose-400 text-white p-3.5 rounded-xl font-orbitron font-bold text-lg transition shadow-[0_0_15px_rgba(244,63,94,0.4)] transform active:scale-95">Submit Guess 🎯</button>
+            </div>
+        </div>
+
+        <!-- ROUND RESULTS SCREEN -->
+        <div id="resultsScreen" class="hidden text-center space-y-6 w-full">
+            <h1 class="text-4xl font-orbitron font-black text-pink-500 neon-text-pink uppercase tracking-wide">Round Over! 🏆</h1>
+            <p class="text-lg">The secret word was: <span id="correctWordDisplay" class="font-orbitron font-bold text-cyan-400 neon-text-cyan tracking-widest bg-black/60 px-4 py-1.5 rounded-lg border border-cyan-800">---</span></p>
+            <div id="resultsBox" class="neon-border-cyan bg-[#0a041a]/95 p-5 rounded-2xl space-y-3 shadow-xl"></div>
+            <p class="text-sm text-pink-400 animate-pulse font-bold tracking-wider">NEXT ROUND STARTING SHORTLY...</p>
+        </div>
+
+        <!-- STANDINGS / LIVE ROSTER DATA BOARD -->
+        <div id="controllerDashboard" class="hidden w-full mt-10">
+            <div class="neon-border-cyan bg-[#0a041a]/95 rounded-2xl p-5 space-y-4">
+                <div class="flex justify-between items-center border-b border-cyan-950 pb-3">
+                    <h3 class="text-md font-orbitron font-bold tracking-wider text-cyan-400 uppercase">Player Standing List</h3>
+                    <span class="text-xs bg-pink-500/20 text-pink-400 font-bold px-3 py-1 rounded-full border border-pink-500/30 font-orbitron uppercase">Rate</span>
+                </div>
+                <div id="playerScoreboardList" class="space-y-3 max-h-48 overflow-y-auto text-sm"></div>
+            </div>
+            <div class="text-center mt-5">
+                <button id="leaveRoomBtn" class="text-xs font-orbitron font-bold uppercase tracking-wider text-rose-500 hover:text-rose-400 underline transition duration-200">
+                    Leave Game Session 👋
+                </button>
+            </div>
         </div>
     </div>
 
@@ -137,12 +233,12 @@
             if (!currentRoomCode) return;
             const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomCode}`;
             navigator.clipboard.writeText(shareUrl).then(() => {
-                copyRoomBtn.innerText = "Copied! ✅";
-                setTimeout(() => { copyRoomBtn.innerText = "Copy Link 📋"; }, 2000);
+                copyRoomBtn.innerHTML = `<span>Copied! ✅</span>`;
+                setTimeout(() => { copyRoomBtn.innerHTML = `<span>Copy Link</span> <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>`; }, 2000);
             }).catch(() => {
                 navigator.clipboard.writeText(currentRoomCode);
-                copyRoomBtn.innerText = "Code Copied! ✅";
-                setTimeout(() => { copyRoomBtn.innerText = "Copy Link 📋"; }, 2000);
+                copyRoomBtn.innerHTML = `<span>Code Copied!</span>`;
+                setTimeout(() => { copyRoomBtn.innerHTML = `<span>Copy Link</span> <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>`; }, 2000);
             });
         });
 
@@ -163,13 +259,13 @@
 
         leaveRoomBtn.addEventListener('click', () => {
             if(confirm("Are you sure you want to leave this game room? Your score data will be wiped.")) {
-                window.location.href = window.location.pathname; // strip URL params and refresh
+                window.location.href = window.location.pathname; 
             }
         });
 
         socket.on('player-joined-success', ({ roomCode }) => {
             currentRoomCode = roomCode;
-            roomCodeBadge.innerText = roomCode;
+            roomCodeBadge.innerText = `[${roomCode}]`;
             
             joinForm.classList.add('hidden'); 
             resultsScreen.classList.add('hidden');
@@ -187,14 +283,17 @@
             guessInput.disabled = false;
             submitGuessBtn.disabled = false;
             submitGuessBtn.innerText = "Submit Guess 🎯";
-            submitGuessBtn.className = "w-full bg-emerald-600 hover:bg-emerald-500 p-3 rounded-xl font-bold text-lg transition shadow-lg";
+            submitGuessBtn.className = "w-full bg-rose-500 hover:bg-rose-400 text-white p-3.5 rounded-xl font-orbitron font-bold text-lg transition shadow-[0_0_15px_rgba(244,63,94,0.4)]";
 
             if (avatarUrl) puzzleImg.src = avatarUrl;
-            if (clue) clueText.innerText = `Hint: ${clue}`;
+            if (clue) clueText.innerText = `Clue: ${clue}`;
 
             letterBank.innerHTML = '';
             scrambledLetters.split('').forEach(char => {
-                letterBank.innerHTML += `<span class="bg-indigo-600/20 text-indigo-300 font-black border border-indigo-500/30 w-10 h-10 flex items-center justify-center text-xl rounded-lg shadow">${char}</span>`;
+                letterBank.innerHTML += `
+                    <span class="bg-[#12072b] text-cyan-400 font-orbitron font-black border border-cyan-500/50 w-11 h-11 flex items-center justify-center text-xl rounded-lg shadow-[0_0_8px_rgba(6,182,212,0.2)]">
+                        ${char}
+                    </span>`;
             });
         });
 
@@ -207,11 +306,11 @@
             guessInput.disabled = true;
             submitGuessBtn.disabled = true;
             submitGuessBtn.innerText = "Answer Locked In! 🔒";
-            submitGuessBtn.className = "w-full bg-slate-700 p-3 rounded-xl font-bold text-lg cursor-not-allowed text-slate-400";
+            submitGuessBtn.className = "w-full bg-cyan-950 border border-cyan-900/40 p-3.5 rounded-xl font-orbitron font-bold text-lg cursor-not-allowed text-cyan-800";
         });
 
         socket.on('guess-result', ({ feedback }) => {
-            letterBank.innerHTML = `<p class="text-xl font-black text-center w-full tracking-wider">${feedback}</p>`;
+            letterBank.innerHTML = `<p class="text-xl font-orbitron font-black text-center w-full tracking-wider text-pink-500 neon-text-pink">${feedback}</p>`;
         });
 
         socket.on('reveal-results', ({ scoreboard, correctWord }) => {
@@ -224,9 +323,9 @@
 
             scoreboard.forEach((p, idx) => {
                 resultsBox.innerHTML += `
-                    <div class="flex justify-between items-center bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 font-bold text-md">
-                        <span>#${idx+1} ${p.nickname}</span>
-                        <span class="text-emerald-400">${p.score} pts</span>
+                    <div class="flex justify-between items-center bg-[#12072b]/50 p-3.5 rounded-xl border border-cyan-950/80 font-orbitron font-bold text-md">
+                        <span class="text-gray-200">#${idx+1} ${p.nickname}</span>
+                        <span class="text-pink-500 neon-text-pink">${p.score} pts</span>
                     </div>`;
             });
         });
@@ -235,9 +334,9 @@
             playerScoreboardList.innerHTML = '';
             standings.forEach(p => {
                 playerScoreboardList.innerHTML += `
-                    <div class="flex justify-between items-center text-slate-300">
-                        <span class="font-medium">${p.nickname}</span>
-                        <span class="font-bold text-indigo-400">${p.score} pts</span>
+                    <div class="flex justify-between items-center text-cyan-100 border-b border-cyan-950/30 pb-2">
+                        <span class="font-orbitron font-bold tracking-wide">${p.nickname}</span>
+                        <span class="font-orbitron font-black text-pink-500 neon-text-pink text-md">${p.score}</span>
                     </div>`;
             });
         });
