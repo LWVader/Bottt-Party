@@ -8,7 +8,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 const roomTimers = new Map();
 
-// 💾 Initialize SQLite persistent database file
+// Initialize SQLite persistent database file
 const db = new Database('database.db');
 
 // Migration checks for existing databases
@@ -45,7 +45,7 @@ db.exec(`
 `);
 
 const stmts = {
-    // Room Statements
+  // Room Statements
     getRoom: db.prepare(`SELECT * FROM rooms WHERE room_code = ?`),
     createRoom: db.prepare(`INSERT INTO rooms (room_code, game_state) VALUES (?, 'PLAYING')`),
     getRoomUsedPuzzles: db.prepare(`SELECT used_puzzles FROM rooms WHERE room_code = ?`),
@@ -57,7 +57,7 @@ const stmts = {
     `),
     updateRoomResultsState: db.prepare(`UPDATE rooms SET game_state = 'RESULTS' WHERE room_code = ?`),
 
-    // Player Statements
+ // Player Statements
     getPlayerBySocket: db.prepare(`SELECT * FROM players WHERE player_id = ?`),
     getPlayerByNickname: db.prepare(`SELECT * FROM players WHERE room_code = ? AND nickname = ?`),
     
@@ -73,7 +73,7 @@ const stmts = {
     `),
     updatePlayerDisconnect: db.prepare(`UPDATE players SET is_connected = 0 WHERE player_id = ?`),
     
-    // Guess & Attempt Tracking 
+ // Guess & Attempt Tracking 
     incrementAttempts: db.prepare(`UPDATE players SET attempts = attempts + 1 WHERE player_id = ?`),
     
     updatePlayerCorrectGuess: db.prepare(`
@@ -88,7 +88,7 @@ const stmts = {
         WHERE room_code = ?
     `),
 
-    // Round Progression & Active Player Checks
+ // Round Progression & Active Player Checks
     getCorrectCountThisRound: db.prepare(`
         SELECT COUNT(*) AS count FROM players 
         WHERE room_code = ? AND correct_this_round = 1
@@ -102,7 +102,7 @@ const stmts = {
         WHERE room_code = ? AND is_connected = 1 AND (has_guessed = 1 OR attempts >= 3)
     `),
 
-    // Standings / Scoreboard 
+ // Standings / Scoreboard 
     getStandings: db.prepare(`
         SELECT 
             nickname, 
@@ -240,7 +240,6 @@ const PUZZLE_BANK = [
         clue: "A simple shield of casual weave, with standard crew neck and short sleeve. Upon my chest, a message or art, I wear an emblem near the heart." 
     },
    
-    // === ADVENTURER STYLE ===
     { 
         word: "MUSTACHE", 
         style: "Toon Head", 
@@ -277,7 +276,6 @@ const PUZZLE_BANK = [
         clue: "A heavy shadow upon the face, where all the laughter leaves no trace. A downward line where the corners fall, a quiet ache that demands it all." 
     },
 
-    // === PERSONAS STYLE ===
     { 
         word: "GOATEE", 
         style: "Croodles", 
@@ -467,17 +465,17 @@ const PUZZLE_BANK = [
 function scrambleWord(word) {
     if (!word) return '';
 
-    // 1. Generates 5 random uppercase extra letters
+ // 1. Generates 5 random uppercase extra letters
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     let extraLetters = '';
     for (let i = 0; i < 5; i++) {
         extraLetters += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
     }
 
-    // 2. Combines into a single array of letters
+ // 2. Combines into a single array of letters
     const letters = (word.toUpperCase() + extraLetters).split('');
 
-    // 3. Performs Fisher-Yates shuffle algorithm
+ // 3. Performs Fisher-Yates shuffle algorithm
     for (let i = letters.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [letters[i], letters[j]] = [letters[j], letters[i]];
@@ -495,7 +493,7 @@ function getPuzzleImage(puzzleItem) {
         return puzzleItem.imageUrl;
     }
 
-    // Otherwise, this uses DiceBear to construct from the standard DiceBear URL
+ // Otherwise, this uses DiceBear to construct from the standard DiceBear URL
     const style = puzzleItem.style || 'bottts';
     const seed = encodeURIComponent(puzzleItem.seed || puzzleItem.word);
     
@@ -567,7 +565,7 @@ function runNextRoundSetup(roomCode) {
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // Create room handler
+ // Create room handler
     socket.on('hostless-create-room', ({ nickname }) => {
         let roomCode;
         let exists = true;
@@ -589,7 +587,7 @@ io.on('connection', (socket) => {
         runNextRoundSetup(roomCode);
     });
 
-    // Join room handler
+ // Join room handler
     socket.on('join-room', ({ roomCode, nickname }) => {
         if (!roomCode || !nickname) {
             return socket.emit('error-message', 'Missing room code or nickname!');
@@ -606,10 +604,10 @@ io.on('connection', (socket) => {
         const player = stmts.getPlayerByNickname.get(roomCode, nickname);
 
         if (player) {
-            // Reconnection path
+     // Reconnection path
             stmts.updatePlayerReconnect.run(socket.id, roomCode, nickname);
         } else {
-            // New entry path
+     // New entry path
             stmts.insertPlayer.run(socket.id, roomCode, nickname);
         }
 
@@ -619,7 +617,7 @@ io.on('connection', (socket) => {
         const currentStandings = stmts.getStandings.all(roomCode);
         io.to(roomCode).emit('update-player-scores', { standings: currentStandings });
 
-        // Catch-up mechanic for active games
+     // Catch-up mechanic for active games
         if (room.game_state === 'PLAYING' && room.current_word) {
             socket.emit('player-start-puzzle', { 
                 scrambledLetters: scrambleWord(room.current_word),
@@ -629,17 +627,17 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Submit guess handler
+ // Submit guess handler
     socket.on('submit-guess', ({ guess }) => {
     const player = stmts.getPlayerBySocket.get(socket.id);
     
-    // Block if player doesn't exist, already guessed correctly, or used all 3 attempts
+ // Block if player doesn't exist, already guessed correctly, or used all 3 attempts
     if (!player || player.has_guessed === 1 || player.attempts >= 3) return;
 
     const room = stmts.getRoom.get(player.room_code);
     if (!room || room.game_state !== 'PLAYING') return;
 
-    // Increment player's attempt counter in the DB
+ // Increment player's attempt counter in the DB
     stmts.incrementAttempts.run(socket.id);
     const updatedAttempts = player.attempts + 1;
     const isCorrect = guess.trim().toUpperCase() === room.current_word;
@@ -648,7 +646,7 @@ io.on('connection', (socket) => {
         const fastestSolver = stmts.getCorrectCountThisRound.get(player.room_code);
         const pointsAwarded = (!fastestSolver || fastestSolver.count === 0) ? 100 : 50;
 
-        // 1. Add points to player score
+    // 1. Add points to player score
         stmts.updatePlayerCorrectGuess.run(pointsAwarded, socket.id);
         
         socket.emit('guess-result', { 
@@ -676,15 +674,15 @@ io.on('connection', (socket) => {
         }
     }
 
-        // Live score & scoreboard update
+    // Live score & scoreboard update
         const updatedStandings = stmts.getStandings.all(player.room_code);
     io.to(player.room_code).emit('update-player-scores', { standings: updatedStandings });
 
-    // 3. Check active players to see if everyone has completed their turns
+// 3. Checks active players to see if everyone has completed their turns
     const totalActive = stmts.getTotalActivePlayers.get(player.room_code);
     const finishedActive = stmts.getFinishedActivePlayers.get(player.room_code);
 
-    // 4. Reveal results & start next round timer if all active players are done
+ // 4. Reveals results & starts next round timer if all active players are done
     if (finishedActive.count >= totalActive.count) {
         stmts.updateRoomResultsState.run(player.room_code);
         io.to(player.room_code).emit('reveal-results', { 
@@ -700,7 +698,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Disconnect handler
+ // Disconnect handler
     socket.on('disconnect', () => {
         const player = stmts.getPlayerBySocket.get(socket.id);
         

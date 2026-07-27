@@ -28,14 +28,14 @@ const roomHeader = $('roomHeader'),
       correctWordDisplay = $('correctWordDisplay'),
       resultsBox = $('resultsBox');
 
-// Check URL parameter for auto-filling room code
+// Parameter for auto-filling room code
 const urlRoom = new URLSearchParams(window.location.search).get('room');
 if (urlRoom) roomInput.value = urlRoom.toUpperCase();
 
-// Helper to render live standings in top dashboard
+// Render live standings in top dashboard
 function renderStandings(players) {
     return players.map((p, index) => {
-        // Fallback to total_score or score or 0
+// Fallback to total_score or score or 0
         const score = p.total_score ?? p.score ?? 0;
         const rank = index + 1;
         let rankClass = 'rank-other';
@@ -132,13 +132,13 @@ socket.on('guess-result', ({ success, locked, feedback }) => {
     if (clueText) clueText.innerText = feedback; 
 
     if (locked) {
-        // Player got it right OR ran out of 3 attempts
+// Player got it right OR ran out of 3 attempts
         guessInput.disabled = true;
         submitGuessBtn.disabled = true;
         submitGuessBtn.innerText = success ? "Correct! 🎉" : "Locked Out 🔒";
         submitGuessBtn.className = "btn-locked font-orbitron";
     } else {
-        // Incorrect guess, but attempts remain
+// Incorrect guess, but attempts remain
         guessInput.disabled = false;
         submitGuessBtn.disabled = false;
         submitGuessBtn.innerText = "Submit Guess 🎯";
@@ -151,12 +151,12 @@ socket.on('guess-result', ({ success, locked, feedback }) => {
 // Live Updates for Standings & Champion Badge
 socket.on('update-player-scores', ({ standings }) => {
     if (standings && standings.length > 0) {
-        // Set top player name in champion badge
+// Set top player name in champion badge
         if (championName) {
             championName.innerText = standings[0].nickname;
         }
         
-        // Render scoreboard list
+// Render scoreboard list
         if (playerScoreboardList) {
             playerScoreboardList.innerHTML = renderStandings(standings);
         }
@@ -170,7 +170,6 @@ socket.on('reveal-results', ({ scoreboard, correctWord }) => {
     resultsScreen.classList.remove('hidden');
     correctWordDisplay.innerText = correctWord;
 
-    // FIX: Using p.total_score ?? p.score ?? 0 here instead of p.score
     resultsBox.innerHTML = scoreboard.map((p, idx) => {
         const score = p.total_score ?? p.score ?? 0;
         return `

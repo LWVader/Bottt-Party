@@ -9,7 +9,7 @@
 </head>
 <body>
 
-    <!-- BACKGROUND NEON DICE COLUMNS -->
+  <!-- BACKGROUND NEON DICE COLUMNS -->
     <div class="dice-column left">
         <div class="spin-dice">🎲</div>
         <div class="spin-dice" style="--speed: 9s;">🎲</div>
@@ -26,12 +26,12 @@
         <div class="spin-dice" style="--speed: 15s;">🎲</div>
     </div>
 
-    <!-- MAIN INTERACTIVE CONTENT -->
+  <!-- MAIN INTERACTIVE CONTENT -->
     <main class="main-container">
         
         <h1 class="app-title font-orbitron neon-text-cyan">Word Bottts</h1>
 
-        <!-- ROOM CODE DISPLAY -->
+  <!-- ROOM CODE DISPLAY -->
         <div id="roomHeader" class="room-header neon-border-pink hidden">
             <div class="room-info font-orbitron">
                 <span style="color: #d1d5db;">Room:</span>
@@ -43,9 +43,9 @@
             </button>
         </div>
 
-        <!-- TOP DASHBOARD: CHAMPION BADGE & STANDINGS -->
+  <!-- //TOP DASHBOARD: CHAMPION BADGE & STANDINGS -->
         <div id="topDashboard" class="top-dashboard-row hidden">
-            <!-- CHAMPION EMBLEM BADGE -->
+  <!-- CHAMPION EMBLEM BADGE -->
             <div id="championBadge" class="champion-badge neon-border-cyan">
                 <div class="emblem-wrapper">
                     <svg class="cyber-shield" viewBox="0 0 100 100">
@@ -61,7 +61,7 @@
                 </div>
             </div>
 
-            <!-- DASHBOARD & STANDINGS -->
+  <!-- //DASHBOARD & STANDINGS -->
             <div id="controllerDashboard" class="dashboard-container">
                 <div class="scoreboard-card neon-border-cyan">
                     <div class="scoreboard-header">
@@ -73,7 +73,7 @@
             </div>
         </div>
 
-        <!-- LOBBY SCREEN -->
+  <!-- //LOBBY SCREEN  -->
         <div id="joinForm" class="form-panel">
             <div class="card-box neon-border-cyan">
                 <h3 class="card-title font-orbitron">Start a New Game</h3>
@@ -99,7 +99,7 @@
             </div>
         </div>
 
-        <!-- WAITING SCREEN -->
+  <!-- //WAITING SCREEN  -->
         <div id="waitingScreen" class="waiting-card neon-border-pink hidden">
             <div class="spinner-wrapper">
                 <div class="spinner-bg"></div>
@@ -111,7 +111,7 @@
             </div>
         </div>
 
-        <!-- PUZZLE SCREEN -->
+  <!-- //PUZZLE SCREEN  -->
         <div id="playerPuzzleScreen" class="puzzle-container hidden">
             <div class="puzzle-card neon-border-cyan">
                 <h2 class="card-title font-orbitron" style="font-size: 1.25rem;">Who or What Am I? 🤔</h2>
@@ -133,7 +133,7 @@
             </div>
         </div>
 
-        <!-- RESULTS SCREEN -->
+  <!-- //RESULTS SCREEN  -->
         <div id="resultsScreen" class="results-container hidden">
             <h1 class="results-title font-orbitron neon-text-pink">Round Over! 🏆</h1>
             <p style="font-size: 1.125rem;">The secret word was: <span id="correctWordDisplay" class="secret-word font-orbitron neon-text-cyan">---</span></p>
@@ -141,7 +141,7 @@
             <p class="next-round-text">NEXT ROUND STARTING SHORTLY...</p>
         </div>
 
-        <!-- LEAVE SESSION ACTION -->
+  <!-- //LEAVE SESSION ACTION  -->
         <div style="text-align: center; margin-top: 1.5rem;">
             <button id="leaveRoomBtn" class="leave-btn font-orbitron hidden">
                 Leave Game Session 👋
