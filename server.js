@@ -2,16 +2,18 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const Database = require('better-sqlite3');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 const roomTimers = new Map();
 
-// Initialize SQLite persistent database file
+// Initialize SQLite persistent database
 const db = new Database('database.db');
+db.pragma('journal_mode = WAL');
 
-// Migration checks for existing databases
+// Migrations
 try {
     db.exec(`ALTER TABLE rooms ADD COLUMN used_puzzles TEXT DEFAULT '';`);
 } catch (e) {}
@@ -45,7 +47,7 @@ db.exec(`
 `);
 
 const stmts = {
-  // Room Statements
+ // Room Statements
     getRoom: db.prepare(`SELECT * FROM rooms WHERE room_code = ?`),
     createRoom: db.prepare(`INSERT INTO rooms (room_code, game_state) VALUES (?, 'PLAYING')`),
     getRoomUsedPuzzles: db.prepare(`SELECT used_puzzles FROM rooms WHERE room_code = ?`),
@@ -116,13 +118,10 @@ const stmts = {
     `)
 };
 
-module.exports = { db, stmts };
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(express.static('public'));
-
-// Route to serve the game layout from the root URL
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/game.html');
+    res.sendFile(path.join(__dirname, 'public', 'game.html'));
 });
 
 const PUZZLE_BANK = [
@@ -380,130 +379,127 @@ const PUZZLE_BANK = [
     // === PROCEDURAL/ABSTRACT STYLES ===
     { 
         word: "STRIPES", 
-        imageUrl: "https://i.postimg.cc/zGVMZP56/STRIPES.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/zGVMZP56/STRIPES.jpg", 
         clue: "We run in parallel, side by side, across a canvas long and wide. We never touch, we never bend, a repeating line without an end." 
     },
     { 
         word: "TRIANGLES", 
-        imageUrl: "https://i.postimg.cc/2SVJRXrf/TRIANGLES.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/2SVJRXrf/TRIANGLES.jpg", 
         clue: "Three sharp corners, three straight sides, where mathematical harmony resides. A multi-pointed, rigid frame, tell me now my geometric name." 
     },
     { 
         word: "SHAPES", 
-        imageUrl: "https://i.postimg.cc/vZkKQLHS/SHAPES.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/vZkKQLHS/SHAPES.jpg", 
         clue: "A chaotic mix of form and line, where overlapping grids entwine. An abstract, colorful, crowded space, where geometry lacks a single face." 
     },
 
     // === CORE ICONS STYLE ===
     { 
         word: "SNOWFLAKE",  
-        imageUrl: "https://i.postimg.cc/P597tzrR/SNOWFLAKE.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/P597tzrR/SNOWFLAKE.jpg", 
         clue: "Born of the clouds, a silent grace, No two alike in form or face. A frozen star of crystal lace, That melts away without a trace." 
     },
     { 
         word: "DICE", 
-        imageUrl: "https://i.postimg.cc/K8wWZrvw/DICE.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/K8wWZrvw/DICE.jpg", 
         clue: "Six square faces, dots for eyes,I hold your fate, your fall, your rise.Though I cannot see or speak a word, My rolling tumble is widely heard." 
     },
     { 
         word: "FLOWER", 
-        imageUrl: "https://i.postimg.cc/mgJnbN2q/FLOWER.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/mgJnbN2q/FLOWER.jpg", 
         clue: "I drink the sun and taste the rain, I bloom in joy and fade in pain. I wear a crown of petals bright, A fragrant beacon in the light." 
     },
     { 
         word: "HEART",  
-        imageUrl: "https://i.postimg.cc/sgv8d0sr/HEART.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/sgv8d0sr/HEART.jpg?", 
         clue: "It has no voice, yet speaks aloud, It pumps unseen, without a shroud. Its beats define the days we've known, In every shape that love has grown. No hinges, keys, or doors appear, Yet it holds everything you hold dear." 
     },
     { 
         word: "CAMERA", 
-        imageUrl: "https://i.postimg.cc/9MJKj3RW/CAMERA.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/9MJKj3RW/CAMERA.jpg", 
         clue: "I have an eye but cannot see, I steal a flash of history. I freeze a second, hold it tight, To save a memory from the night." 
     },
     { 
         word: "BICYCLE",  
-        imageUrl: "https://i.postimg.cc/y6njnXcC/BICYCLE.png?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/y6njnXcC/BICYCLE.png", 
         clue: "Two round legs that spin and roll, A human engine is my soul. I never speak, I have no mind, Yet leave a tracks of tracks behind." 
     },
     { 
         word: "ALARM", 
-        imageUrl: "https://i.postimg.cc/FFGpGgcD/ALARM.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/FFGpGgcD/ALARM.jpg", 
         clue: "Two metal ears upon my head, I shatter dreams while in your bed. I scream aloud to break the night, And force your eyes to meet the light." 
     },
     { 
         word: "BUG", 
-        imageUrl: "https://i.postimg.cc/5ywSBLw7/Bug.png?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/5ywSBLw7/Bug.png", 
         clue: "A tiny phantom in the code, Or crawling on a dusty road. A multi-legged, silent fright, That keeps developers up at night." 
     },
     { 
         word: "BINOCULARS", 
-        imageUrl: "https://i.postimg.cc/bYLgLHb7/BINOCULARS.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/bYLgLHb7/BINOCULARS.jpg", 
         clue: "Two heavy eyes that stretch the sight, To pull the distant into light. I bring the far-off mountains near, To make the hidden world appear." 
     },
     { 
         word: "BOOK", 
-        imageUrl: "https://i.postimg.cc/kgzHnFXk/BOOK.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/kgzHnFXk/BOOK.jpg", 
         clue: "I have a spine but cannot stand, I hold a world within your hand. Leaf after leaf, my secrets grow, With silent words you ought to know." 
     },
     { 
         word: "BRIEFCASE", 
-        imageUrl: "https://i.postimg.cc/3xVqKCJz/BRIEFCASE.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/3xVqKCJz/BRIEFCASE.jpg", 
         clue: "Rectangular and locked up tight, I guard your secrets day and night. I hold the papers, deals, and trade, Wherever corporate fortunes are made." 
     },
     { 
         word: "BELL", 
-        imageUrl: "https://i.postimg.cc/44wPwbtr/BELL.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/44wPwbtr/BELL.jpg/BELL.jpg", 
         clue: "A hollow tongue inside my shell, I toll a warning or a knell. Swing me hard to make me shout, To clear a room or call them out." 
     },
     { 
         word: "BANK", 
-        imageUrl: "https://i.postimg.cc/gc4s4qR7/BANK.jpg?auto=format&fit=crop&w=800&q=80", 
+        imageUrl: "https://i.postimg.cc/gc4s4qR7/BANK.jpg", 
         clue: "I stand on pillars, tall and grand, A vault of green within the land. I guard the wealth of poor and king, Yet of myself, I own no thing." 
     }
 ];
 
 function scrambleWord(word) {
     if (!word) return '';
-
- // 1. Generates 5 random uppercase extra letters
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     let extraLetters = '';
     for (let i = 0; i < 5; i++) {
         extraLetters += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
     }
-
- // 2. Combines into a single array of letters
     const letters = (word.toUpperCase() + extraLetters).split('');
-
- // 3. Performs Fisher-Yates shuffle algorithm
     for (let i = letters.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [letters[i], letters[j]] = [letters[j], letters[i]];
     }
-
     return letters.join('');
 }
 
-// This determines which image type to use based on whether an image URL (like Unsplash) is defined!
-function getPuzzleImage(puzzleItem) {
-    if (puzzleItem.imageSrc) {
-        return puzzleItem.imageSrc;
-    }
-    if (puzzleItem.imageUrl) {
-        return puzzleItem.imageUrl;
+function getPuzzleImage(puzzle) {
+    if (!puzzle) return '';
+
+// Extracts custom static URL if present
+    let rawUrl = puzzle.imageUrl || puzzle.imageSrc;
+
+    if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() !== '') {
+ // Strips trailing query parameters if hosted on static services like PostImg
+        if (rawUrl.includes('postimg.cc')) {
+            rawUrl = rawUrl.split('?')[0];
+        }
+        return rawUrl;
     }
 
- // Otherwise, this uses DiceBear to construct from the standard DiceBear URL
-    const style = puzzleItem.style || 'bottts';
-    const seed = encodeURIComponent(puzzleItem.seed || puzzleItem.word);
-    
-    return `https://api.dicebear.com/10.x/${style}/svg?seed=${seed}&backgroundColor=1982c4`;
+ // Fallback to constructed DiceBear URL
+    const style = puzzle.style || 'bottts';
+    const seed = encodeURIComponent(puzzle.seed || puzzle.word || 'default-seed');
+
+    return `https://api.dicebear.com/10.x/${style}/svg?seed=${seed}`;
 }
 
 function getNextUniquePuzzle(roomCode) {
     const room = stmts.getRoomUsedPuzzles.get(roomCode);
     let usedWords = room && room.used_puzzles ? room.used_puzzles.split(',').filter(Boolean) : [];
-
     let availablePuzzles = PUZZLE_BANK.filter(p => !usedWords.includes(p.word));
 
     if (availablePuzzles.length === 0) {
@@ -511,31 +507,7 @@ function getNextUniquePuzzle(roomCode) {
         availablePuzzles = [...PUZZLE_BANK];
     }
 
-    const styleHistory = [];
-    for (const word of usedWords) {
-        const found = PUZZLE_BANK.find(p => p.word === word);
-        if (found) styleHistory.push(found.style);
-    }
-
-    const remainingStyles = [...new Set(availablePuzzles.map(p => p.style))];
-    let targetStyle = remainingStyles[0];
-    let oldestIndex = Infinity;
-
-    for (const style of remainingStyles) {
-        const lastSeen = styleHistory.lastIndexOf(style);
-        if (lastSeen === -1) {
-            targetStyle = style;
-            break;
-        }
-        if (lastSeen < oldestIndex) {
-            oldestIndex = lastSeen;
-            targetStyle = style;
-        }
-    }
-
-    const stylePool = availablePuzzles.filter(p => p.style === targetStyle);
-    const chosenPuzzle = stylePool[Math.floor(Math.random() * stylePool.length)];
-
+    const chosenPuzzle = availablePuzzles[Math.floor(Math.random() * availablePuzzles.length)];
     usedWords.push(chosenPuzzle.word);
     stmts.updateRoomUsedPuzzles.run(usedWords.join(','), roomCode);
 
@@ -549,10 +521,9 @@ function runNextRoundSetup(roomCode) {
     }
 
     const targetPuzzle = getNextUniquePuzzle(roomCode);
-    const avatarUrl = getPuzzleImage(targetPuzzle); 
+    const avatarUrl = getPuzzleImage(targetPuzzle);
 
     stmts.updateRoomState.run(targetPuzzle.word, targetPuzzle.clue, avatarUrl, roomCode);
-    
     stmts.resetPlayersForNewRound.run(roomCode);
 
     io.to(roomCode).emit('player-start-puzzle', { 
@@ -562,10 +533,42 @@ function runNextRoundSetup(roomCode) {
     });
 }
 
-io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
+function checkAndAdvanceRound(roomCode) {
+    if (!roomCode) return;
 
- // Create room handler
+    const totalActive = stmts.getTotalActivePlayers.get(roomCode);
+    const finishedActive = stmts.getFinishedActivePlayers.get(roomCode);
+
+ // If there are no active players at all, return early
+    if (!totalActive || totalActive.count === 0) return;
+
+ // Triggers round completion if all remaining connected players are done
+    if (finishedActive.count >= totalActive.count) {
+ // Prevents setting duplicate timers if the round is already finishing
+        if (roomTimers.has(roomCode)) return;
+
+        const room = stmts.getRoom.get(roomCode);
+        if (!room || room.game_state === 'RESULTS') return;
+
+        stmts.updateRoomResultsState.run(roomCode);
+
+        const updatedStandings = stmts.getStandings.all(roomCode);
+        io.to(roomCode).emit('reveal-results', { 
+            scoreboard: updatedStandings, 
+            correctWord: room.current_word 
+        });
+
+        const timer = setTimeout(() => {
+            roomTimers.delete(roomCode);
+            runNextRoundSetup(roomCode);
+        }, 10000);
+
+        roomTimers.set(roomCode, timer);
+    }
+}
+
+// Socket Communications
+io.on('connection', (socket) => {
     socket.on('hostless-create-room', ({ nickname }) => {
         let roomCode;
         let exists = true;
@@ -575,11 +578,13 @@ io.on('connection', (socket) => {
             exists = stmts.getRoom.get(roomCode);
         }
         
+        const cleanNickname = (nickname || 'PLAYER').toUpperCase().trim();
+
         stmts.createRoom.run(roomCode);
-        stmts.insertPlayer.run(socket.id, roomCode, nickname.toUpperCase().trim());
+        stmts.insertPlayer.run(socket.id, roomCode, cleanNickname);
 
         socket.join(roomCode);
-        socket.emit('player-joined-success', { roomCode, nickname });
+        socket.emit('player-joined-success', { roomCode, nickname: cleanNickname });
 
         const currentStandings = stmts.getStandings.all(roomCode);
         io.to(roomCode).emit('update-player-scores', { standings: currentStandings });
@@ -587,37 +592,29 @@ io.on('connection', (socket) => {
         runNextRoundSetup(roomCode);
     });
 
- // Join room handler
     socket.on('join-room', ({ roomCode, nickname }) => {
-        if (!roomCode || !nickname) {
-            return socket.emit('error-message', 'Missing room code or nickname!');
-        }
+        if (!roomCode || !nickname) return socket.emit('error-message', 'Missing room code or nickname!');
 
-        roomCode = roomCode.toUpperCase().trim();
-        nickname = nickname.toUpperCase().trim();
+        const cleanRoom = roomCode.toUpperCase().trim();
+        const cleanNickname = nickname.toUpperCase().trim();
 
-        const room = stmts.getRoom.get(roomCode);
-        if (!room) {
-            return socket.emit('error-message', 'Room not found! Check your code.');
-        }
+        const room = stmts.getRoom.get(cleanRoom);
+        if (!room) return socket.emit('error-message', 'Room not found!');
 
-        const player = stmts.getPlayerByNickname.get(roomCode, nickname);
+        const existingPlayer = stmts.getPlayerByNickname.get(cleanRoom, cleanNickname);
 
-        if (player) {
-     // Reconnection path
-            stmts.updatePlayerReconnect.run(socket.id, roomCode, nickname);
+        if (existingPlayer) {
+            stmts.updatePlayerReconnect.run(socket.id, cleanRoom, cleanNickname);
         } else {
-     // New entry path
-            stmts.insertPlayer.run(socket.id, roomCode, nickname);
+            stmts.insertPlayer.run(socket.id, cleanRoom, cleanNickname);
         }
 
-        socket.join(roomCode);
-        socket.emit('player-joined-success', { roomCode, nickname });
+        socket.join(cleanRoom);
+        socket.emit('player-joined-success', { roomCode: cleanRoom, nickname: cleanNickname });
 
-        const currentStandings = stmts.getStandings.all(roomCode);
-        io.to(roomCode).emit('update-player-scores', { standings: currentStandings });
+        const currentStandings = stmts.getStandings.all(cleanRoom);
+        io.to(cleanRoom).emit('update-player-scores', { standings: currentStandings });
 
-     // Catch-up mechanic for active games
         if (room.game_state === 'PLAYING' && room.current_word) {
             socket.emit('player-start-puzzle', { 
                 scrambledLetters: scrambleWord(room.current_word),
@@ -627,89 +624,66 @@ io.on('connection', (socket) => {
         }
     });
 
- // Submit guess handler
+ // Handles incoming guess attempts
     socket.on('submit-guess', ({ guess }) => {
-    const player = stmts.getPlayerBySocket.get(socket.id);
-    
- // Block if player doesn't exist, already guessed correctly, or used all 3 attempts
-    if (!player || player.has_guessed === 1 || player.attempts >= 3) return;
+        const player = stmts.getPlayerBySocket.get(socket.id);
+        if (!player || player.has_guessed === 1 || player.attempts >= 3) return;
 
-    const room = stmts.getRoom.get(player.room_code);
-    if (!room || room.game_state !== 'PLAYING') return;
+        const room = stmts.getRoom.get(player.room_code);
+        if (!room || room.game_state !== 'PLAYING') return;
 
- // Increment player's attempt counter in the DB
-    stmts.incrementAttempts.run(socket.id);
-    const updatedAttempts = player.attempts + 1;
-    const isCorrect = guess.trim().toUpperCase() === room.current_word;
+        stmts.incrementAttempts.run(socket.id);
+        const updatedAttempts = player.attempts + 1;
+        const isCorrect = guess.trim().toUpperCase() === room.current_word;
 
-    if (isCorrect) {
-        const fastestSolver = stmts.getCorrectCountThisRound.get(player.room_code);
-        const pointsAwarded = (!fastestSolver || fastestSolver.count === 0) ? 100 : 50;
+        if (isCorrect) {
+            const fastestSolver = stmts.getCorrectCountThisRound.get(player.room_code);
+            const pointsAwarded = (!fastestSolver || fastestSolver.count === 0) ? 100 : 50;
 
-    // 1. Add points to player score
-        stmts.updatePlayerCorrectGuess.run(pointsAwarded, socket.id);
-        
-        socket.emit('guess-result', { 
-            success: true, 
-            locked: true,
-            feedback: `Correct! +${pointsAwarded} pts` 
-        });
-    } else {
-        const attemptsLeft = 3 - updatedAttempts;
-
-        if (attemptsLeft > 0) {
+            stmts.updatePlayerCorrectGuess.run(pointsAwarded, socket.id);
+            
             socket.emit('guess-result', { 
-                success: false, 
-                locked: false,
-                attemptsLeft: attemptsLeft,
-                feedback: `Wrong! ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining.` 
+                success: true, 
+                locked: true,
+                feedback: `Correct! +${pointsAwarded} pts` 
             });
         } else {
+            const attemptsLeft = 3 - updatedAttempts;
+
             socket.emit('guess-result', { 
                 success: false, 
-                locked: true,
-                attemptsLeft: 0,
-                feedback: 'No attempts remaining! Locked out for this round 🔒' 
+                locked: attemptsLeft === 0,
+                attemptsLeft: attemptsLeft,
+                feedback: attemptsLeft > 0 
+                    ? `Wrong! ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining.` 
+                    : 'No attempts remaining! Locked out for this round 🔒'
             });
         }
-    }
 
-    // Live score & scoreboard update
+    // Emits updated scores
         const updatedStandings = stmts.getStandings.all(player.room_code);
-    io.to(player.room_code).emit('update-player-scores', { standings: updatedStandings });
+        io.to(player.room_code).emit('update-player-scores', { standings: updatedStandings });
 
-// 3. Checks active players to see if everyone has completed their turns
-    const totalActive = stmts.getTotalActivePlayers.get(player.room_code);
-    const finishedActive = stmts.getFinishedActivePlayers.get(player.room_code);
-
- // 4. Reveals results & starts next round timer if all active players are done
-    if (finishedActive.count >= totalActive.count) {
-        stmts.updateRoomResultsState.run(player.room_code);
-        io.to(player.room_code).emit('reveal-results', { 
-            scoreboard: updatedStandings, 
-            correctWord: room.current_word 
-        });
-
-        const timer = setTimeout(() => {
-            runNextRoundSetup(player.room_code);
-        }, 10000);
-
-        roomTimers.set(player.room_code, timer);
-        }
+    // Triggers a check to see if round should advance
+        checkAndAdvanceRound(player.room_code);
     });
 
- // Disconnect handler
     socket.on('disconnect', () => {
         const player = stmts.getPlayerBySocket.get(socket.id);
-        
         stmts.updatePlayerDisconnect.run(socket.id);
 
         if (player) {
             const currentStandings = stmts.getStandings.all(player.room_code);
             io.to(player.room_code).emit('update-player-scores', { standings: currentStandings });
+
+     // Re-evaluates round completion for remaining connected players
+            checkAndAdvanceRound(player.room_code);
         }
     });
 });
 
+// Server Initialization
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Hostless Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
+
+module.exports = { app, server, db, stmts };
