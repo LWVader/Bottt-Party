@@ -9,7 +9,7 @@
 </head>
 <body>
 
-  <!-- BACKGROUND NEON DICE COLUMNS -->
+ <!-- BACKGROUND NEON DICE COLUMNS -->
     <div class="dice-column left">
         <div class="spin-dice">🎲</div>
         <div class="spin-dice" style="--speed: 9s;">🎲</div>
@@ -26,12 +26,12 @@
         <div class="spin-dice" style="--speed: 15s;">🎲</div>
     </div>
 
-  <!-- MAIN INTERACTIVE CONTENT -->
+ <!-- MAIN INTERACTIVE CONTENT -->
     <main class="main-container">
         
         <h1 class="app-title font-orbitron neon-text-cyan">Word Bottts</h1>
 
-  <!-- ROOM CODE DISPLAY -->
+ <!-- ROOM CODE DISPLAY -->
         <div id="roomHeader" class="room-header neon-border-pink hidden">
             <div class="room-info font-orbitron">
                 <span style="color: #d1d5db;">Room:</span>
@@ -43,9 +43,9 @@
             </button>
         </div>
 
-  <!-- //TOP DASHBOARD: CHAMPION BADGE & STANDINGS -->
+ <!-- TOP DASHBOARD: CHAMPION BADGE & STANDINGS -->
         <div id="topDashboard" class="top-dashboard-row hidden">
-  <!-- CHAMPION EMBLEM BADGE -->
+ <!-- CHAMPION EMBLEM BADGE -->
             <div id="championBadge" class="champion-badge neon-border-cyan">
                 <div class="emblem-wrapper">
                     <svg class="cyber-shield" viewBox="0 0 100 100">
@@ -61,7 +61,7 @@
                 </div>
             </div>
 
-  <!-- //DASHBOARD & STANDINGS -->
+ <!-- DASHBOARD & STANDINGS -->
             <div id="controllerDashboard" class="dashboard-container">
                 <div class="scoreboard-card neon-border-cyan">
                     <div class="scoreboard-header">
@@ -73,7 +73,7 @@
             </div>
         </div>
 
-  <!-- //LOBBY SCREEN  -->
+ <!-- LOBBY SCREEN -->
         <div id="joinForm" class="form-panel">
             <div class="card-box neon-border-cyan">
                 <h3 class="card-title font-orbitron">Start a New Game</h3>
@@ -99,19 +99,35 @@
             </div>
         </div>
 
-  <!-- //WAITING SCREEN  -->
+ <!-- WAITING SCREEN -->
         <div id="waitingScreen" class="waiting-card neon-border-pink hidden">
-            <div class="spinner-wrapper">
-                <div class="spinner-bg"></div>
-                <div class="spinner-active"></div>
+            <div class="loader-infinity">
+                <svg class="inf-svg" viewBox="0 0 85 40">
+                    <defs>
+                        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="var(--grad-start)" />
+                            <stop offset="50%" stop-color="var(--grad-mid)" />
+                            <stop offset="100%" stop-color="var(--grad-end)" />
+                        </linearGradient>
+                    </defs>
+                    
+               <!-- Background Track -->
+                    <path class="inf-track" d="M 10 20 C 10 5, 35 5, 42.5 20 C 50 35, 75 35, 75 20 C 75 5, 50 5, 42.5 20 C 35 35, 10 35, 10 20 Z" />
+                    
+               <!-- Animated Dots -->
+                    <circle class="inf-dot" cx="0" cy="0" />
+                    <circle class="inf-trail--1" cx="0" cy="0" />
+                    <circle class="inf-trail--2" cx="0" cy="0" />
+                </svg>
             </div>
+
             <div>
                 <h2 class="font-orbitron neon-text-pink" style="font-size: 1.5rem; font-weight: 700; color: #f43f5e; text-transform: uppercase;">Waiting...</h2>
                 <p style="font-size: 0.875rem; color: rgba(34, 211, 238, 0.8); margin-top: 0.25rem;">Preparing the next digital puzzle blueprint.</p>
             </div>
         </div>
 
-  <!-- //PUZZLE SCREEN  -->
+  <!-- PUZZLE SCREEN -->
         <div id="playerPuzzleScreen" class="puzzle-container hidden">
             <div class="puzzle-card neon-border-cyan">
                 <h2 class="card-title font-orbitron" style="font-size: 1.25rem;">Who or What Am I? 🤔</h2>
@@ -133,15 +149,38 @@
             </div>
         </div>
 
-  <!-- //RESULTS SCREEN  -->
+  <!-- RESULTS / WAITING SCREEN -->
         <div id="resultsScreen" class="results-container hidden">
             <h1 class="results-title font-orbitron neon-text-pink">Round Over! 🏆</h1>
             <p style="font-size: 1.125rem;">The secret word was: <span id="correctWordDisplay" class="secret-word font-orbitron neon-text-cyan">---</span></p>
+            
             <div id="resultsBox" class="results-box neon-border-cyan"></div>
-            <p class="next-round-text">NEXT ROUND STARTING SHORTLY...</p>
+            
+  <!-- NEXT GAME LOADER -->
+            <div class="next-game-loader-card neon-border-cyan">
+                <div class="loader-infinity">
+                    <svg class="inf-svg" viewBox="0 0 85 40">
+                        <defs>
+                            <linearGradient id="gradNextGame" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#f43f5e" />
+                                <stop offset="50%" stop-color="#a855f7" />
+                                <stop offset="100%" stop-color="#06b6d4" />
+                            </linearGradient>
+                        </defs>
+                        <path class="inf-track" style="stroke: url(#gradNextGame);" d="M 10 20 C 10 5, 35 5, 42.5 20 C 50 35, 75 35, 75 20 C 75 5, 50 5, 42.5 20 C 35 35, 10 35, 10 20 Z" />
+                        <circle class="inf-dot" cx="0" cy="0" />
+                        <circle class="inf-trail--1" cx="0" cy="0" />
+                        <circle class="inf-trail--2" cx="0" cy="0" />
+                    </svg>
+                </div>
+                <div class="loading-text-group">
+                    <p class="next-round-text font-orbitron">LOADING NEXT MATCH...</p>
+                    <span class="loading-subtext">Preparing puzzle blueprint</span>
+                </div>
+            </div>
         </div>
 
-  <!-- //LEAVE SESSION ACTION  -->
+  <!-- LEAVE SESSION ACTION -->
         <div style="text-align: center; margin-top: 1.5rem;">
             <button id="leaveRoomBtn" class="leave-btn font-orbitron hidden">
                 Leave Game Session 👋
