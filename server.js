@@ -6,23 +6,28 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 const roomTimers = new Map();
+
+// Serve static frontend assets
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Initialize SQLite persistent database
 const db = new Database('database.db');
 db.pragma('journal_mode = WAL');
 
-// Migrations
-try {
-    db.exec(`ALTER TABLE rooms ADD COLUMN used_puzzles TEXT DEFAULT '';`);
-} catch (e) {}
+// 1. Safe Column Migrations
+try { db.exec(`ALTER TABLE rooms ADD COLUMN used_puzzles TEXT DEFAULT '';`); } catch (e) {}
+try { db.exec(`ALTER TABLE players ADD COLUMN attempts INTEGER DEFAULT 0;`); } catch (e) {}
+try { db.exec(`ALTER TABLE players ADD COLUMN username TEXT DEFAULT '';`); } catch (e) {}
+try { db.exec(`ALTER TABLE players_vault ADD COLUMN password TEXT DEFAULT '';`); } catch (e) {}
 
-try {
-    db.exec(`ALTER TABLE players ADD COLUMN attempts INTEGER DEFAULT 0;`);
-} catch (e) {}
-
-// Table Initialization
+// 2. Table Initializations
 db.exec(`
     CREATE TABLE IF NOT EXISTS rooms (
         room_code TEXT PRIMARY KEY,
@@ -37,6 +42,7 @@ db.exec(`
         player_id TEXT PRIMARY KEY,
         room_code TEXT,
         nickname TEXT,
+        username TEXT DEFAULT '',
         total_score INTEGER DEFAULT 0,
         has_guessed INTEGER DEFAULT 0,
         attempts INTEGER DEFAULT 0,
@@ -44,10 +50,36 @@ db.exec(`
         is_connected INTEGER DEFAULT 1,
         FOREIGN KEY(room_code) REFERENCES rooms(room_code)
     );
+
+    CREATE TABLE IF NOT EXISTS players_vault (
+        username TEXT PRIMARY KEY,
+        password TEXT NOT NULL DEFAULT '',
+        games_played INTEGER DEFAULT 0,
+        wins INTEGER DEFAULT 0,
+        score INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
 `);
 
+// 3. Prepared Statements
 const stmts = {
- // Room Statements
+    // Vault Statements
+    getVaultPlayer: db.prepare(`SELECT * FROM players_vault WHERE username = ?`),
+    createVaultPlayer: db.prepare(`INSERT INTO players_vault (username, password) VALUES (?, ?)`),
+    updateVaultPlayerStats: db.prepare(`
+        UPDATE players_vault 
+        SET games_played = games_played + 1, 
+            wins = wins + ?, 
+            score = score + ? 
+        WHERE username = ?
+    `),
+    savePlayerProgress: db.prepare(`
+        UPDATE players_vault 
+        SET score = COALESCE(score, 0) + ?, games_played = games_played + 1 
+        WHERE username = ?
+    `),
+
+    // Room Statements
     getRoom: db.prepare(`SELECT * FROM rooms WHERE room_code = ?`),
     createRoom: db.prepare(`INSERT INTO rooms (room_code, game_state) VALUES (?, 'PLAYING')`),
     getRoomUsedPuzzles: db.prepare(`SELECT used_puzzles FROM rooms WHERE room_code = ?`),
@@ -59,23 +91,23 @@ const stmts = {
     `),
     updateRoomResultsState: db.prepare(`UPDATE rooms SET game_state = 'RESULTS' WHERE room_code = ?`),
 
- // Player Statements
+    // Player Statements
     getPlayerBySocket: db.prepare(`SELECT * FROM players WHERE player_id = ?`),
     getPlayerByNickname: db.prepare(`SELECT * FROM players WHERE room_code = ? AND nickname = ?`),
     
     insertPlayer: db.prepare(`
-        INSERT INTO players (player_id, room_code, nickname, total_score, has_guessed, attempts, correct_this_round, is_connected) 
-        VALUES (?, ?, ?, 0, 0, 0, 0, 1)
+        INSERT INTO players (player_id, room_code, nickname, username, total_score, has_guessed, attempts, correct_this_round, is_connected) 
+        VALUES (?, ?, ?, ?, 0, 0, 0, 0, 1)
     `),
     
     updatePlayerReconnect: db.prepare(`
         UPDATE players 
-        SET player_id = ?, is_connected = 1 
+        SET player_id = ?, username = ?, is_connected = 1 
         WHERE room_code = ? AND nickname = ?
     `),
     updatePlayerDisconnect: db.prepare(`UPDATE players SET is_connected = 0 WHERE player_id = ?`),
     
- // Guess & Attempt Tracking 
+    // Guess & Attempt Tracking 
     incrementAttempts: db.prepare(`UPDATE players SET attempts = attempts + 1 WHERE player_id = ?`),
     
     updatePlayerCorrectGuess: db.prepare(`
@@ -90,7 +122,7 @@ const stmts = {
         WHERE room_code = ?
     `),
 
- // Round Progression & Active Player Checks
+    // Round Progression & Active Player Checks
     getCorrectCountThisRound: db.prepare(`
         SELECT COUNT(*) AS count FROM players 
         WHERE room_code = ? AND correct_this_round = 1
@@ -104,11 +136,13 @@ const stmts = {
         WHERE room_code = ? AND is_connected = 1 AND (has_guessed = 1 OR attempts >= 3)
     `),
 
- // Standings / Scoreboard 
+    // Standings / Scoreboard 
     getStandings: db.prepare(`
         SELECT 
+            username, 
             nickname, 
             COALESCE(total_score, 0) AS total_score, 
+            COALESCE(total_score, 0) AS score, 
             has_guessed, 
             attempts, 
             is_connected 
@@ -117,6 +151,9 @@ const stmts = {
         ORDER BY total_score DESC
     `)
 };
+// ==========================================
+// EXPRESS ROUTING & STATIC ASSETS
+// ==========================================
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -461,39 +498,48 @@ const PUZZLE_BANK = [
     }
 ];
 
+// Constants
+const MAX_ATTEMPTS = 3;
+const ROUND_TRANSITION_DELAY_MS = 10000;
+
+// ==========================================
+// UTILITY FUNCTIONS
+// ==========================================
+function generateRoomCode() {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
 function scrambleWord(word) {
     if (!word) return '';
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     let extraLetters = '';
+    
     for (let i = 0; i < 5; i++) {
         extraLetters += alphabet.charAt(Math.floor(Math.random() * alphabet.length));
     }
+    
     const letters = (word.toUpperCase() + extraLetters).split('');
     for (let i = letters.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [letters[i], letters[j]] = [letters[j], letters[i]];
     }
+    
     return letters.join('');
 }
 
 function getPuzzleImage(puzzle) {
     if (!puzzle) return '';
-
-// Extracts custom static URL if present
     let rawUrl = puzzle.imageUrl || puzzle.imageSrc;
 
     if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim() !== '') {
- // Strips trailing query parameters if hosted on static services like PostImg
         if (rawUrl.includes('postimg.cc')) {
             rawUrl = rawUrl.split('?')[0];
         }
         return rawUrl;
     }
 
- // Fallback to constructed DiceBear URL
     const style = puzzle.style || 'bottts';
     const seed = encodeURIComponent(puzzle.seed || puzzle.word || 'default-seed');
-
     return `https://api.dicebear.com/10.x/${style}/svg?seed=${seed}`;
 }
 
@@ -528,7 +574,7 @@ function runNextRoundSetup(roomCode) {
 
     io.to(roomCode).emit('player-start-puzzle', { 
         scrambledLetters: scrambleWord(targetPuzzle.word),
-        avatarUrl: avatarUrl,
+        avatarUrl,
         clue: targetPuzzle.clue
     });
 }
@@ -539,12 +585,9 @@ function checkAndAdvanceRound(roomCode) {
     const totalActive = stmts.getTotalActivePlayers.get(roomCode);
     const finishedActive = stmts.getFinishedActivePlayers.get(roomCode);
 
- // If there are no active players at all, return early
     if (!totalActive || totalActive.count === 0) return;
 
- // Triggers round completion if all remaining connected players are done
     if (finishedActive.count >= totalActive.count) {
- // Prevents setting duplicate timers if the round is already finishing
         if (roomTimers.has(roomCode)) return;
 
         const room = stmts.getRoom.get(roomCode);
@@ -558,30 +601,88 @@ function checkAndAdvanceRound(roomCode) {
             correctWord: room.current_word 
         });
 
+        updatedStandings.forEach((player, index) => {
+            if (player.username) {
+                const isWinner = index === 0 && player.score > 0;
+                stmts.updateVaultPlayerStats.run(isWinner ? 1 : 0, player.score || 0, player.username);
+            }
+        });
+
         const timer = setTimeout(() => {
             roomTimers.delete(roomCode);
             runNextRoundSetup(roomCode);
-        }, 10000);
+        }, ROUND_TRANSITION_DELAY_MS);
 
         roomTimers.set(roomCode, timer);
     }
 }
-
-// Socket Communications
+// ==========================================
+// SOCKET.IO EVENT HANDLERS
+// ==========================================
 io.on('connection', (socket) => {
-    socket.on('hostless-create-room', ({ nickname }) => {
+    socket.on('player_vault_login', ({ username, password }) => {
+        if (!username || !password) {
+            return socket.emit('vault_login_error', 'USERNAME AND PASSWORD REQUIRED');
+        }
+        
+        const cleanUser = username.trim().toUpperCase();
+        const cleanPass = password.trim();
+
+        try {
+            let player = stmts.getVaultPlayer.get(cleanUser);
+
+            if (!player) {
+                stmts.createVaultPlayer.run(cleanUser, cleanPass);
+                player = stmts.getVaultPlayer.get(cleanUser);
+            } else if (player.password !== cleanPass) {
+                return socket.emit('vault_login_error', 'INCORRECT PASSWORD');
+            }
+
+            socket.username = cleanUser;
+            const { password: _, ...safeProfile } = player;
+            socket.emit('vault_login_success', safeProfile);
+        } catch (err) {
+            console.error('Vault DB Error:', err);
+            socket.emit('vault_login_error', 'DATABASE ERROR: ACCESS DENIED');
+        }
+    });
+
+    socket.on('save_game_progress', () => {
+        const player = stmts.getPlayerBySocket.get(socket.id);
+        const vaultUsername = socket.username || (player ? player.username : null);
+
+        if (!player || !vaultUsername) {
+            return socket.emit('game_saved_error', 'No active session found.');
+        }
+
+        try {
+            stmts.savePlayerProgress.run(player.total_score || 0, vaultUsername);
+            
+            const vaultPlayer = stmts.getVaultPlayer.get(vaultUsername);
+            const updatedScore = vaultPlayer ? vaultPlayer.score : (player.total_score || 0);
+
+            socket.emit('game_saved_success', { score: updatedScore });
+        } catch (err) {
+            console.error('Save Error:', err);
+            socket.emit('game_saved_error', 'Failed to save game state.');
+        }
+    });
+
+    socket.on('hostless-create-room', ({ nickname, username }) => {
         let roomCode;
         let exists = true;
         
         while (exists) {
             roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-            exists = stmts.getRoom.get(roomCode);
+            exists = !!stmts.getRoom.get(roomCode);
         }
         
-        const cleanNickname = (nickname || 'PLAYER').toUpperCase().trim();
+        const cleanNickname = (nickname || username || socket.username || 'PLAYER').toUpperCase().trim();
+        const vaultUsername = (username || socket.username || cleanNickname).toUpperCase().trim();
+        socket.username = vaultUsername;
 
         stmts.createRoom.run(roomCode);
-        stmts.insertPlayer.run(socket.id, roomCode, cleanNickname);
+        stmts.insertPlayer.run(socket.id, roomCode, cleanNickname, vaultUsername);
 
         socket.join(roomCode);
         socket.emit('player-joined-success', { roomCode, nickname: cleanNickname });
@@ -592,11 +693,13 @@ io.on('connection', (socket) => {
         runNextRoundSetup(roomCode);
     });
 
-    socket.on('join-room', ({ roomCode, nickname }) => {
+    socket.on('join-room', ({ roomCode, nickname, username }) => {
         if (!roomCode || !nickname) return socket.emit('error-message', 'Missing room code or nickname!');
 
         const cleanRoom = roomCode.toUpperCase().trim();
         const cleanNickname = nickname.toUpperCase().trim();
+        const vaultUsername = (username || socket.username || cleanNickname).toUpperCase().trim();
+        socket.username = vaultUsername;
 
         const room = stmts.getRoom.get(cleanRoom);
         if (!room) return socket.emit('error-message', 'Room not found!');
@@ -604,16 +707,16 @@ io.on('connection', (socket) => {
         const existingPlayer = stmts.getPlayerByNickname.get(cleanRoom, cleanNickname);
 
         if (existingPlayer) {
-            stmts.updatePlayerReconnect.run(socket.id, cleanRoom, cleanNickname);
+            stmts.updatePlayerReconnect.run(socket.id, vaultUsername, cleanRoom, cleanNickname);
         } else {
-            stmts.insertPlayer.run(socket.id, cleanRoom, cleanNickname);
+            stmts.insertPlayer.run(socket.id, cleanRoom, cleanNickname, vaultUsername);
         }
 
         socket.join(cleanRoom);
         socket.emit('player-joined-success', { roomCode: cleanRoom, nickname: cleanNickname });
 
-        const currentStandings = stmts.getStandings.all(cleanRoom);
-        io.to(cleanRoom).emit('update-player-scores', { standings: currentStandings });
+        const updatedStandings = stmts.getStandings.all(cleanRoom);
+        io.to(cleanRoom).emit('update-player-scores', { standings: updatedStandings });
 
         if (room.game_state === 'PLAYING' && room.current_word) {
             socket.emit('player-start-puzzle', { 
@@ -624,17 +727,17 @@ io.on('connection', (socket) => {
         }
     });
 
- // Handles incoming guess attempts
     socket.on('submit-guess', ({ guess }) => {
         const player = stmts.getPlayerBySocket.get(socket.id);
-        if (!player || player.has_guessed === 1 || player.attempts >= 3) return;
+        if (!player || player.has_guessed === 1 || player.attempts >= MAX_ATTEMPTS) return;
 
         const room = stmts.getRoom.get(player.room_code);
         if (!room || room.game_state !== 'PLAYING') return;
 
         stmts.incrementAttempts.run(socket.id);
         const updatedAttempts = player.attempts + 1;
-        const isCorrect = guess.trim().toUpperCase() === room.current_word;
+        const cleanGuess = (guess || '').trim().toUpperCase();
+        const isCorrect = cleanGuess === room.current_word.toUpperCase();
 
         if (isCorrect) {
             const fastestSolver = stmts.getCorrectCountThisRound.get(player.room_code);
@@ -648,23 +751,21 @@ io.on('connection', (socket) => {
                 feedback: `Correct! +${pointsAwarded} pts` 
             });
         } else {
-            const attemptsLeft = 3 - updatedAttempts;
+            const attemptsLeft = MAX_ATTEMPTS - updatedAttempts;
 
             socket.emit('guess-result', { 
                 success: false, 
                 locked: attemptsLeft === 0,
-                attemptsLeft: attemptsLeft,
+                attemptsLeft,
                 feedback: attemptsLeft > 0 
                     ? `Wrong! ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining.` 
                     : 'No attempts remaining! Locked out for this round 🔒'
             });
         }
 
-    // Emits updated scores
         const updatedStandings = stmts.getStandings.all(player.room_code);
         io.to(player.room_code).emit('update-player-scores', { standings: updatedStandings });
 
-    // Triggers a check to see if round should advance
         checkAndAdvanceRound(player.room_code);
     });
 
@@ -676,14 +777,12 @@ io.on('connection', (socket) => {
             const currentStandings = stmts.getStandings.all(player.room_code);
             io.to(player.room_code).emit('update-player-scores', { standings: currentStandings });
 
-     // Re-evaluates round completion for remaining connected players
             checkAndAdvanceRound(player.room_code);
         }
     });
 });
 
-// Server Initialization
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 
-module.exports = { app, server, db, stmts };
+module.exports = { app, server, io };

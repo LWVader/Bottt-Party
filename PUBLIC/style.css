@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap');
 
 /* ==========================================
-   COLOR SYSTEM & GLOBAL VARS
+   COLOR SYSTEM & GLOBAL SETS
    ========================================== */
 :root {
     /* Neon Primary Palette */
@@ -57,7 +57,7 @@ body {
     display: none !important;
 }
 
-/* Scrollbar for Standings */
+/* Scrollbar for Standings & Lists */
 ::-webkit-scrollbar {
     width: 6px;
 }
@@ -69,6 +69,126 @@ body {
     background: var(--neon-cyan);
     border-radius: 4px;
     box-shadow: 0 0 8px var(--neon-cyan-glow);
+}
+
+/* ==========================================
+   SCI-FI BLAST VAULT OVERLAY
+   ========================================== */
+.vault-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background: radial-gradient(circle, #0f172a 0%, #020617 100%);
+    box-shadow: 0 0 35px rgba(16, 185, 129, 0.2), inset 0 0 20px rgba(0, 0, 0, 0.8);
+    overflow: hidden;
+    perspective: 1000px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: pointer-events 0.4s ease;
+}
+
+.vault-wrapper.open {
+    pointer-events: none;
+}
+
+.vault-status-bar {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 30;
+}
+
+.status-light {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 10px #ef4444;
+    transition: all 0.3s ease;
+}
+
+.vault-wrapper.open .status-light {
+    background: #10b981;
+    box-shadow: 0 0 12px #10b981;
+}
+
+.vault-door {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border: 2px solid #334155;
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.9);
+    transition: transform 1s cubic-bezier(0.77, 0, 0.175, 1);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+}
+
+.vault-door-left {
+    left: 0;
+    border-right: 3px solid #00f0ff;
+    justify-content: flex-end;
+}
+
+.vault-door-right {
+    right: 0;
+    border-left: 3px solid #00f0ff;
+    justify-content: flex-start;
+}
+
+.vault-wrapper.open .vault-door-left {
+    transform: translateX(-100%);
+}
+
+.vault-wrapper.open .vault-door-right {
+    transform: translateX(100%);
+}
+
+.lock-wheel-half {
+    width: 70px;
+    height: 140px;
+    border: 4px solid #00f0ff;
+    background: radial-gradient(circle, #334155 0%, #0f172a 100%);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+.vault-door-left .lock-wheel-half {
+    border-radius: 140px 0 0 140px;
+    border-right: none;
+}
+
+.vault-door-right .lock-wheel-half {
+    border-radius: 0 140px 140px 0;
+    border-left: none;
+}
+
+.vault-inner-content {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    background: rgba(15, 23, 42, 0.95);
+    border: 1px solid #06b6d4;
+    border-radius: 12px;
+    box-shadow: 0 0 25px rgba(6, 182, 212, 0.3);
+    transition: opacity 0.4s ease;
+}
+
+.vault-wrapper.open .vault-inner-content {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* ==========================================
@@ -136,7 +256,7 @@ body {
 }
 
 /* ==========================================
-   MAIN CONTAINER & TYPOGRAPHY
+   MAIN CONTAINER & HEADER COMPONENTS
    ========================================== */
 .main-container {
     position: relative;
@@ -159,7 +279,6 @@ body {
     text-shadow: 0 0 10px rgba(34, 211, 238, 0.9), 0 0 25px rgba(34, 211, 238, 0.5), 0 0 40px rgba(6, 182, 212, 0.3);
 }
 
-/* Room Header Badge */
 .room-header {
     margin-bottom: 1.5rem;
     background: rgba(5, 1, 15, 0.85);
@@ -208,7 +327,7 @@ body {
 .copy-btn svg { width: 0.875rem; height: 0.875rem; }
 
 /* ==========================================
-   TOP DASHBOARD LAYOUT (BADGE + STANDINGS)
+   DASHBOARD & CHAMPION BADGE
    ========================================== */
 .top-dashboard-row {
     display: flex;
@@ -225,9 +344,6 @@ body {
     margin-top: 0;
 }
 
-/* ==========================================
-   CYBER CHAMPION BADGE
-   ========================================== */
 .champion-badge {
     flex: 0 0 190px;
     position: relative;
@@ -327,7 +443,7 @@ body {
 }
 
 /* ==========================================
-   FORMS & CARD PANELS
+   FORMS, CARDS & INPUTS
    ========================================== */
 .form-panel {
     width: 100%;
@@ -407,7 +523,9 @@ body {
     text-shadow: 0 0 8px var(--neon-pink-glow);
 }
 
-/* Buttons */
+/* ==========================================
+   BUTTON STYLES
+   ========================================== */
 .btn-primary {
     width: 100%;
     background: linear-gradient(135deg, #f43f5e 0%, #e11d48 100%);
@@ -459,119 +577,58 @@ body {
     cursor: not-allowed;
     color: var(--text-muted);
 }
+
+.leave-btn {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--neon-pink);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: all 0.2s ease;
+}
+
+.leave-btn:hover { 
+    color: #fb7185; 
+    text-shadow: 0 0 8px var(--neon-pink-glow);
+}
+
 /* ==========================================
-   NEXT GAME LOADER
+   LOADERS & INFINITY ANIMATIONS
    ========================================== */
+.waiting-card,
 .next-game-loader-card {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 1.25rem;
-    padding: 1.75rem 1.5rem;
-    background: rgba(10, 4, 26, 0.85);
-    backdrop-filter: blur(12px);
-    border-radius: 1rem;
-    margin: 1.5rem auto 0 auto;
-    width: 100%;
-    max-width: 24rem;
-    text-align: center;
-}
-
-/* Infinity Loader */
-.next-game-loader-card .loader-infinity {
-    --grad-start: #f43f5e;
-    --grad-mid:   #a855f7;
-    --grad-end:   #06b6d4;
-    width: 4.2rem;
-    height: 2.1rem;
-    position: relative;
-    margin: 0 auto;
-}
-
-.next-game-loader-card .inf-svg {
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-}
-
-.next-game-loader-card .inf-track {
-    fill: none;
-    stroke-width: 2.5;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-.next-game-loader-card .inf-dot, 
-.next-game-loader-card .inf-trail--1, 
-.next-game-loader-card .inf-trail--2 {
-    offset-path: path("M 10 20 C 10 5, 35 5, 42.5 20 C 50 35, 75 35, 75 20 C 75 5, 50 5, 42.5 20 C 35 35, 10 35, 10 20 Z");
-    animation: infinityLoop 2s linear infinite;
-}
-
-.next-game-loader-card .inf-dot {
-    fill: var(--grad-start);
-    r: 3.5px;
-    filter: drop-shadow(0 0 6px var(--grad-start));
-}
-
-.next-game-loader-card .inf-trail--1 {
-    fill: var(--grad-mid);
-    r: 2.5px;
-    animation-delay: -0.12s;
-    filter: drop-shadow(0 0 4px var(--grad-mid));
-}
-
-.next-game-loader-card .inf-trail--2 {
-    fill: var(--grad-end);
-    r: 1.8px;
-    animation-delay: -0.24s;
-    filter: drop-shadow(0 0 3px var(--grad-end));
-}
-
-@keyframes infinityLoop {
-    0%   { offset-distance: 0%; }
-    100% { offset-distance: 100%; }
-}
-
-/* styles for transitions screen */
-.loading-text-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.loading-subtext {
-    font-size: 0.8rem;
-    color: #94a3b8;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-}
-
-/* ==========================================
-   WAITING SCREEN & INFINITY LOADER
-   ========================================== */
-.waiting-card {
-    width: 100%;
-    max-width: 28rem;
-    margin: 0 auto;
-    padding: 2.5rem 0;
-    text-align: center;
     background: var(--card-bg);
     backdrop-filter: blur(12px);
     border-radius: 1rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1.5rem;
+    width: 100%;
+    max-width: 28rem;
+    margin: 0 auto;
+    text-align: center;
+}
 
-    --grad-start: #f43f5e;
-    --grad-mid:   #a855f7;
-    --grad-end:   #06b6d4;
+.waiting-card {
+    padding: 2.5rem 0;
+}
+
+.next-game-loader-card {
+    padding: 1.75rem 1.5rem;
+    margin-top: 1.5rem;
+    max-width: 24rem;
 }
 
 .loader-infinity {
+    --grad-start: #f43f5e;
+    --grad-mid: #a855f7;
+    --grad-end: #06b6d4;
     width: 4.2rem;
     height: 2.1rem;
     position: relative;
@@ -586,7 +643,6 @@ body {
 
 .inf-track {
     fill: none;
-    stroke: url(#grad);
     stroke-width: 2.5;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -602,26 +658,40 @@ body {
 .inf-dot {
     fill: var(--grad-start);
     r: 3.5px;
-    filter: drop-shadow(0 0 8px var(--grad-start));
+    filter: drop-shadow(0 0 6px var(--grad-start));
 }
 
 .inf-trail--1 {
     fill: var(--grad-mid);
     r: 2.5px;
     animation-delay: -0.12s;
-    filter: drop-shadow(0 0 6px var(--grad-mid));
+    filter: drop-shadow(0 0 4px var(--grad-mid));
 }
 
 .inf-trail--2 {
     fill: var(--grad-end);
     r: 1.8px;
     animation-delay: -0.24s;
-    filter: drop-shadow(0 0 4px var(--grad-end));
+    filter: drop-shadow(0 0 3px var(--grad-end));
 }
 
 @keyframes infinityLoop {
-    0%   { offset-distance: 0%; }
+    0% { offset-distance: 0%; }
     100% { offset-distance: 100%; }
+}
+
+.loading-text-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.loading-subtext {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
 /* ==========================================
@@ -734,7 +804,7 @@ body {
 }
 
 /* ==========================================
-   RESULTS & DASHBOARD STANDINGS
+   RESULTS & SCOREBOARDS
    ========================================== */
 .results-container {
     width: 100%;
@@ -846,24 +916,6 @@ body {
     overflow-y: auto;
 }
 
-.leave-btn {
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--neon-pink);
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    text-decoration: underline;
-    transition: all 0.2s ease;
-}
-
-.leave-btn:hover { 
-    color: #fb7185; 
-    text-shadow: 0 0 8px var(--neon-pink-glow);
-}
-
 /* ==========================================
    CYBER STANDINGS ROW STYLING
    ========================================== */
@@ -972,9 +1024,8 @@ body {
 .standings-row.rank-3 .player-name { color: #a5f3fc; }
 
 /* ==========================================
-   RESPONSIVE DESIGNS (MEDIA QUERIES)
+   RESPONSIVE DESIGN QUERIES
    ========================================== */
-
 @media (max-width: 639px) {
     .top-dashboard-row {
         flex-direction: column;
