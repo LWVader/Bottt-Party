@@ -77,6 +77,7 @@ body {
     display: flex;
     gap: 12px;
     z-index: 30;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
 }
 
 .status-light {
@@ -85,12 +86,81 @@ body {
     border-radius: 50%;
     background: #ef4444;
     box-shadow: 0 0 10px #ef4444;
-    transition: background 0.3s ease, box-shadow 0.3s ease;
+    transition: background 0.3s ease, box-shadow 0.3s ease, opacity 0.4s ease;
+
+    /* Continuous pulsing, color-changing animation */
+    animation: statusPulse 2.5s ease-in-out infinite alternate var(--d, 0s);
 }
 
+/* 1. Color Shift & Blinking Keyframes */
+@keyframes statusPulse {
+    0% {
+        background: #ef4444;
+        box-shadow: 0 0 10px #ef4444;
+        opacity: 1;
+    }
+    30% {
+        background: #f59e0b; /* Amber alert glow */
+        box-shadow: 0 0 12px #f59e0b;
+        opacity: 0.85;
+    }
+    50% {
+        opacity: 0.25; /* Blink / Dim effect */
+    }
+    70% {
+        background: #06b6d4; /* Sci-fi cyan glow */
+        box-shadow: 0 0 10px #06b6d4;
+        opacity: 0.9;
+    }
+    100% {
+        background: #ef4444;
+        box-shadow: 0 0 14px #ef4444;
+        opacity: 1;
+    }
+}
+
+/* ==========================================
+   VAULT OPEN STATE (FADE OUT ALL OVERLAYS)
+   ========================================== */
+
+/* Turn all lights solid green when unlocking, then disable animation */
 .vault-wrapper.open .status-light {
+    animation: none;
     background: #10b981;
     box-shadow: 0 0 12px #10b981;
+    opacity: 0;
+}
+
+/* Fade out status bar with wrapper */
+.vault-wrapper.open .vault-status-bar {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Fade out inner content (login box) */
+.vault-inner-content {
+    position: relative;
+    z-index: 20;
+    transition: opacity 0.4s ease, visibility 0.4s ease, transform 0.4s ease;
+}
+
+.vault-wrapper.open .vault-inner-content {
+    opacity: 0;
+    visibility: hidden;
+    transform: scale(0.95);
+    pointer-events: none;
+}
+
+/* Cleanly hide outer wrapper after door slide finishes */
+.vault-wrapper {
+    transition: background 1s ease 0.3s, box-shadow 1s ease 0.3s, visibility 0s linear 1.2s;
+}
+
+.vault-wrapper.open {
+    pointer-events: none;
+    background: transparent;
+    box-shadow: none;
+    visibility: hidden;
 }
 
 .vault-door {
@@ -98,37 +168,48 @@ body {
     top: 0;
     width: 50%;
     height: 100%;
-    
- /* Layer 1: High-Density Fractal Noise (Deep Corrosion Grain)
- Layer 2: Heavy Vertical Rust Drips & Water Stains
- Layer 3: Splattered Rust Patches & Corroded Iron Base */
-    background: 
-        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='extremeRust'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23extremeRust)' opacity='0.22'/%3E%3C/svg%3E"),
- /* Vertical Dripping Rust Lines */
+
+   
+
+    /*
+      Layer 1: SVG Fractal Noise (Deep Corrosion Grain)
+      Layer 2: Radial Rust & Oxide Patches
+      Layer 3: Weathered Teal/Cyan Base Paint
+      Layer 4: Vertical Corrugated Metal Ridges
+    */
+
+    background:
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='extremeRust'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.1' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23extremeRust)' opacity='0.22'/%3E%3C/svg%3E"),
+      
+        /* Deep Rust Blobs */
+        radial-gradient(circle at 20% 80%, rgba(139, 58, 22, 0.95), transparent 50%),
+        radial-gradient(circle at 80% 30%, rgba(160, 60, 20, 0.9), transparent 60%),
+        radial-gradient(circle at 50% 90%, rgba(100, 35, 10, 0.95), transparent 40%),
+      
+        /* Oxidized Teal/Cyan Base Paint Layer */
+        linear-gradient(110deg, #4c736b 0%, #8ba89f 35%, #a4c5b8 60%, #3a5953 100%),
+
+        /* Corrugated Metal Ridges (Vertical 3D lines) */
         repeating-linear-gradient(
-            180deg,
-            transparent 0%,
-            rgba(154, 52, 18, 0.4) 15%,
-            rgba(124, 45, 18, 0.8) 40%,
-            rgba(67, 20, 7, 0.95) 75%,
-            rgba(15, 23, 42, 0.9) 100%
-        ),
-  /* Heavy Oxide & Corrosion Bloches */
-        radial-gradient(circle at 20% 30%, #9a3412 0%, #7c2d12 25%, #431407 55%, transparent 80%),
-        radial-gradient(circle at 80% 75%, #c2410c 0%, #9a3412 20%, #431407 50%, transparent 75%),
-        linear-gradient(135deg, #1f130b 0%, #0c0805 100%);
-        
-    background-blend-mode: overlay, multiply, color-dodge, normal, normal;
-    
- /* Damaged Iron Edges */
+            90deg,
+            rgba(255, 255, 255, 0.25) 0px,
+            rgba(255, 255, 255, 0.05) 3px,
+            rgba(0, 0, 0, 0.4) 6px,
+            rgba(0, 0, 0, 0.65) 9px
+        );
+      
+    /* Blends ridges, teal paint, and rust spots smoothly */
+    background-blend-mode: overlay, multiply, normal, multiply;
+  
+    /* Damaged Iron Edges */
     border: 3px solid #431407;
-    
- /* Aggressive Rust & Soot Edge Vignetting */
-    box-shadow: 
+ 
+    /* Edge Vignetting & Heavy Interior Shadows */
+    box-shadow:
         inset 0 0 80px rgba(0, 0, 0, 0.98),
         inset 0 0 40px rgba(124, 45, 18, 0.8),
         inset 0 0 150px rgba(15, 23, 42, 0.9);
-    
+
     transition: transform 1s cubic-bezier(0.77, 0, 0.175, 1);
     z-index: 10;
     display: flex;
@@ -136,12 +217,13 @@ body {
     overflow: hidden;
 }
 
-/* Layer 2: Long Dripping Corroded Seams */
+
+
+/* Layer 2: Vertical Water & Rust Drips */
 .vault-door::before {
     content: '';
     position: absolute;
     inset: 0;
- /* Simulated heavy rust streaks running down the doors */
     background: repeating-linear-gradient(
         90deg,
         transparent 0px,
@@ -155,7 +237,7 @@ body {
     pointer-events: none;
 }
 
-/* Layer 3: Industrial Plate Seams & Structural Stress Marks */
+/* Layer 3: Horizontal Sheet Metal Joints & Seams */
 .vault-door::after {
     content: '';
     position: absolute;
@@ -163,19 +245,19 @@ body {
     background: repeating-linear-gradient(
         0deg,
         transparent 0px,
-        transparent 140px,
-        rgba(0, 0, 0, 0.9) 140px,
-        rgba(194, 65, 12, 0.5) 143px,
-        rgba(15, 23, 42, 0.9) 146px
+        transparent 180px,
+        rgba(0, 0, 0, 0.8) 180px,
+        rgba(255, 255, 255, 0.15) 182px,
+        rgba(0, 0, 0, 0.9) 184px
     );
     pointer-events: none;
 }
 
-/* Door Center Seal with Heavy Oxidized Border */
+/* Door Center Seals */
 .vault-door-left {
     left: 0;
     border-right: 4px solid #7c2d12;
-    box-shadow: 
+    box-shadow:
         inset -25px 0 35px rgba(0, 0, 0, 0.95),
         inset -5px 0 15px rgba(194, 65, 12, 0.6),
         inset 0 0 60px rgba(0, 0, 0, 0.9);
@@ -185,7 +267,7 @@ body {
 .vault-door-right {
     right: 0;
     border-left: 4px solid #7c2d12;
-    box-shadow: 
+    box-shadow:
         inset 25px 0 35px rgba(0, 0, 0, 0.95),
         inset 5px 0 15px rgba(194, 65, 12, 0.6),
         inset 0 0 60px rgba(0, 0, 0, 0.9);
@@ -201,20 +283,16 @@ body {
 }
 
 /* ==========================================
-   ROTTED & OXIDIZED LOCK WHEEL
+   OXIDIZED LOCK WHEEL
    ========================================== */
-
 .lock-wheel-half {
     width: 75px;
     height: 150px;
-    background: 
+    background:
         url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='rustWheel'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23rustWheel)' opacity='0.3'/%3E%3C/svg%3E"),
         radial-gradient(circle at 50% 50%, #9a3412 0%, #431407 65%, #0c0805 100%);
-    
     border: 4px solid #7c2d12;
-    
-/* Broken Cyber Glow with Deep Oxide Pit Shadows */
-    box-shadow: 
+    box-shadow:
         0 0 12px rgba(194, 65, 12, 0.5),
         inset 0 0 25px rgba(0, 0, 0, 0.95),
         0 0 40px rgba(0, 0, 0, 0.95);
@@ -248,7 +326,7 @@ body {
 .vault-wrapper.open .vault-inner-content {
     opacity: 0;
     pointer-events: none;
-}
+} 
 
 /* ==========================================
    SPINNING DICE COLUMNS

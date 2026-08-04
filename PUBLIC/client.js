@@ -83,7 +83,7 @@ loginSubmitBtn?.addEventListener('click', () => {
 
     if (!nickname) {
         if (loginStatus) {
-            loginStatus.textContent = "PLEASE ENTER YOUR CALLSIGN";
+            loginStatus.textContent = "PLEASE ENTER YOUR NAME";
             loginStatus.style.color = "#f43f5e";
         }
         return;
