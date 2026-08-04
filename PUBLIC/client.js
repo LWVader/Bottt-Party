@@ -1,9 +1,9 @@
 // ==========================================
-// Global State & Utilities
+// Global State & Helper Functions
 // ==========================================
 let currentRoomCode = "";
 let currentPuzzleClue = "";
-let currentPlayerData = null;
+let socketListenersInitialized = false;
 
 // Attach socket globally to window
 window.socket = window.socket || (typeof io !== "undefined" ? io() : null);
@@ -14,19 +14,21 @@ const $ = (id) => document.getElementById(id);
 const roomHeader = $('roomHeader');
 const roomCodeBadge = $('roomCodeBadge');
 const copyRoomBtn = $('copyRoomBtn');
-const joinForm = $('joinForm');
 const waitingScreen = $('waitingScreen');
 const playerPuzzleScreen = $('playerPuzzleScreen');
 const resultsScreen = $('resultsScreen');
 const topDashboard = $('topDashboard');
 const championName = $('championName');
 const playerScoreboardList = $('playerScoreboardList');
-const createRoomBtn = $('createRoomBtn');
-const creatorNickInput = $('creatorNickInput');
-const joinBtn = $('joinBtn');
+
+// Lobby & Form Controls (Matched with HTML IDs)
+const btnCreateRoom = $('btnCreateRoom');
+const btnJoinRoom = $('btnJoinRoom');
 const leaveRoomBtn = $('leaveRoomBtn');
-const roomInput = $('roomInput');
-const nickInput = $('nickInput');
+const joinRoomCodeInput = $('joinRoomCode');
+const joinNicknameInput = $('joinNickname');
+
+// Gameplay Elements
 const puzzleImg = $('puzzleImg');
 const clueText = $('clueText');
 const letterBank = $('letterBank');
@@ -35,16 +37,122 @@ const submitGuessBtn = $('submitGuessBtn');
 const correctWordDisplay = $('correctWordDisplay');
 const resultsBox = $('resultsBox');
 const saveGameBtn = $('saveGameBtn');
-const enterGameBtn = $('enterGameBtn');
+
+// Dual Card / Active Puzzle Elements
+const startPuzzleBtn = $('startPuzzleBtn') || $('loadGameBtn');
+const loadRoomCodeInput = $('loadRoomCodeInput');
+const loadNickInput = $('loadNickInput');
+
+// Vault Authentication Elements
+const loginUsernameInput = $('loginUsername');
+const rejoinRoomCodeInput = $('rejoinRoomCode');
+const loginSubmitBtn = $('loginSubmitBtn');
+const loginStatus = $('loginStatus');
+
+// Rejoin With Code Toggle Elements
+const toggleRejoinBtn = $('toggleRejoinBtn');
+const rejoinCodeContainer = $('rejoinCodeContainer');
+
+// Global AudioContext & Buffer Cache
+let audioCtx = null;
+let cachedNoiseBuffer = null;
+
+// ==========================================
+// Auto-Run Configurations & Form Listeners
+// ==========================================
 
 // Auto-fill room code from shared URL query parameter
 const urlRoom = new URLSearchParams(window.location.search).get('room');
-if (urlRoom && roomInput) {
-    roomInput.value = urlRoom.toUpperCase();
+if (urlRoom && joinRoomCodeInput) {
+    joinRoomCodeInput.value = urlRoom.toUpperCase();
 }
 
-// Global AudioContext cache
-let audioCtx = null;
+// Toggle Rejoin Code Input Container
+if (toggleRejoinBtn && rejoinCodeContainer) {
+    toggleRejoinBtn.addEventListener('click', () => {
+        rejoinCodeContainer.classList.toggle('hidden');
+        const isHidden = rejoinCodeContainer.classList.contains('hidden');
+        toggleRejoinBtn.textContent = isHidden ? 'REJOIN WITH CODE 🔑' : 'CANCEL CODE ENTRY ✖';
+    });
+}
+
+// Vault Login / Enter Game Event Handler
+loginSubmitBtn?.addEventListener('click', () => {
+    const nickname = loginUsernameInput?.value.trim().toUpperCase() || '';
+    const roomCode = rejoinRoomCodeInput?.value.trim().toUpperCase() || '';
+
+    if (!nickname) {
+        if (loginStatus) {
+            loginStatus.textContent = "PLEASE ENTER YOUR CALLSIGN";
+            loginStatus.style.color = "#f43f5e";
+        }
+        return;
+    }
+
+    sessionStorage.setItem("current_nickname", nickname);
+
+    if (roomCode) {
+        window.socket?.emit("load_game_with_code", { roomCode, nickname });
+    } else {
+        triggerVaultDoorOpen();
+    }
+});
+
+// Single-Button Action: Create & Launch Room (Fixed Target & Fallbacks)
+btnCreateRoom?.addEventListener('click', () => {
+    const nickname = (
+        sessionStorage.getItem("current_nickname") ||
+        loginUsernameInput?.value.trim() ||
+        'AGENT'
+    ).toUpperCase();
+
+    sessionStorage.setItem("current_nickname", nickname);
+    window.socket?.emit('hostless-create-room', { nickname });
+});
+
+// Single-Button Action: Join / Re-enter Game Panel
+btnJoinRoom?.addEventListener('click', () => {
+    const roomCode = joinRoomCodeInput?.value.trim().toUpperCase() || '';
+    const nickname = (
+        joinNicknameInput?.value.trim() ||
+        sessionStorage.getItem("current_nickname") ||
+        'AGENT'
+    ).toUpperCase();
+
+    if (!roomCode) {
+        alert("PLEASE ENTER A VALID ROOM CODE");
+        joinRoomCodeInput?.focus();
+        return;
+    }
+
+    sessionStorage.setItem("current_nickname", nickname);
+    sessionStorage.setItem("current_room_code", roomCode);
+    window.socket?.emit('join-room', { roomCode, nickname });
+});
+
+// Action: Start Puzzle from Card
+startPuzzleBtn?.addEventListener('click', handleStartPuzzleFromCard);
+
+function handleStartPuzzleFromCard() {
+    const roomCode = loadRoomCodeInput?.value.trim().toUpperCase() || '';
+    const nickname = (
+        loadNickInput?.value.trim() ||
+        sessionStorage.getItem("current_nickname") ||
+        'AGENT'
+    ).toUpperCase();
+
+    if (!roomCode) {
+        alert("PLEASE ENTER A VALID ROOM CODE TO START THE PUZZLE");
+        loadRoomCodeInput?.focus();
+        return;
+    }
+
+    sessionStorage.setItem("current_nickname", nickname);
+    sessionStorage.setItem("current_room_code", roomCode);
+
+    triggerVaultDoorOpen();
+    window.socket?.emit("load_game_with_code", { roomCode, nickname });
+}
 
 // ==========================================
 // Initialization & Socket Binding
@@ -59,126 +167,28 @@ document.addEventListener("DOMContentLoaded", () => {
         window.socket = io();
     }
 
-    // Vault Auth Listeners
-    window.socket.on("vault_login_success", (playerProfile) => onAuthSuccess(playerProfile));
-    window.socket.on("vault_login_error", (errorMessage) => onAuthError(errorMessage));
-
-    // Socket Session Auto-Restore & Reconnect
     window.socket.on("connect", () => {
         console.log("[SOCKET] Connected to server:", window.socket.id);
 
-        // 1. Auto-restore stored Vault session
-        const savedPlayer = localStorage.getItem("word_bottts_player");
-        if (savedPlayer) {
-            try {
-                const profile = JSON.parse(savedPlayer);
-                onAuthSuccess(profile, false); // Populate UI without door animation
-
-                if (profile.username && profile.password) {
-                    window.socket.emit("player_vault_login", { 
-                        username: profile.username, 
-                        password: profile.password 
-                    });
-                }
-            } catch (err) {
-                console.error("Corrupted local profile session removed:", err);
-                localStorage.removeItem("word_bottts_player");
-            }
-        }
-
-        // 2. Auto-rejoin active room if disconnected mid-game
         const savedRoom = sessionStorage.getItem("current_room_code");
         const savedNick = sessionStorage.getItem("current_nickname");
         if (savedRoom && savedNick) {
-            const username = currentPlayerData ? currentPlayerData.username : savedNick;
-            window.socket.emit('join-room', { roomCode: savedRoom, nickname: savedNick, username });
+            window.socket.emit('load_game_with_code', { roomCode: savedRoom, nickname: savedNick });
         }
-    });
-
-    // Login Event Listeners
-    const loginSubmitBtn = $('loginSubmitBtn');
-    const loginPasswordInput = $('loginPassword');
-
-    loginSubmitBtn?.addEventListener('click', handleVaultLogin);
-    loginPasswordInput?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleVaultLogin();
-    });
-
-    enterGameBtn?.addEventListener('click', () => {
-        enterGameBtn.disabled = true;
-        triggerVaultDoorOpen();
     });
 
     setupGameplaySocketListeners();
 });
 
 // ==========================================
-// 1. Vault Login & Auth Handlers
-// ==========================================
-function handleVaultLogin() {
-    const usernameInput = $('loginUsername');
-    const passwordInput = $('loginPassword');
-    const username = usernameInput?.value.trim().toUpperCase() || '';
-    const password = passwordInput?.value.trim() || '';
-    const statusText = $('loginStatus');
-
-    if (!username || !password) {
-        if (statusText) {
-            statusText.style.display = "block";
-            statusText.style.color = "#EF4444";
-            statusText.textContent = "ENTER BOTH CALLSIGN & PASSWORD";
-        }
-        return;
-    }
-
-    if (statusText) statusText.style.display = "none";
-    window.socket?.emit("player_vault_login", { username, password });
-}
-
-function onAuthSuccess(profile, openDoor = true) {
-    currentPlayerData = profile;
-    localStorage.setItem("word_bottts_player", JSON.stringify(profile));
-
-    const statusText = $('loginStatus');
-    const loginSubmitBtn = $('loginSubmitBtn');
-
-    if (statusText) {
-        statusText.style.display = "block";
-        statusText.style.color = "#10B981";
-        statusText.textContent = `AUTHENTICATED AS ${profile.username}. OPENING VAULT...`;
-    }
-
-    if (creatorNickInput) creatorNickInput.value = profile.username;
-    if (nickInput) nickInput.value = profile.username;
-
-    loginSubmitBtn?.classList.add('hidden');
-    enterGameBtn?.classList.remove('hidden');
-
-    if (openDoor) {
-        triggerVaultDoorOpen();
-    }
-}
-
-function onAuthError(errMsg) {
-    currentPlayerData = null;
-    enterGameBtn?.classList.add('hidden');
-
-    const statusText = $('loginStatus');
-    if (statusText) {
-        statusText.style.display = "block";
-        statusText.style.color = "#EF4444";
-        statusText.textContent = errMsg;
-    }
-}
-
-// ==========================================
-// 2. Blast Visual & Audio Effects
+// Visual & Audio Effects
 // ==========================================
 function createVaultBlastEffect(container) {
     const particleCount = 28;
     const rect = container ? container.getBoundingClientRect() : document.body.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
     const centerY = rect.top + rect.height / 2;
+    const fragment = document.createDocumentFragment();
 
     for (let i = 0; i < particleCount; i++) {
         const particle = document.createElement("div");
@@ -190,15 +200,18 @@ function createVaultBlastEffect(container) {
         const ty = Math.sin(angle) * velocity;
         const rotation = Math.random() * 720 - 360;
 
-        particle.style.left = `${centerX}px`;
-        particle.style.top = `${centerY}px`;
-        particle.style.setProperty('--tx', `${tx}px`);
-        particle.style.setProperty('--ty', `${ty}px`);
-        particle.style.setProperty('--rot', `${rotation}deg`);
+        particle.style.cssText = `
+            left: ${centerX}px;
+            top: ${centerY}px;
+            --tx: ${tx}px;
+            --ty: ${ty}px;
+            --rot: ${rotation}deg;
+        `;
 
-        document.body.appendChild(particle);
+        fragment.appendChild(particle);
         setTimeout(() => particle.remove(), 700);
     }
+    document.body.appendChild(fragment);
 }
 
 function playVaultDoorSequence() {
@@ -211,7 +224,7 @@ function playVaultDoorSequence() {
         
         const now = audioCtx.currentTime;
 
-        // 1. Blaster Laser / Wire-Ping
+        // 1. Laser Ping
         const blasterOsc = audioCtx.createOscillator();
         const blasterGain = audioCtx.createGain();
         blasterOsc.type = 'sawtooth';
@@ -232,7 +245,7 @@ function playVaultDoorSequence() {
         blasterOsc.start(now);
         blasterOsc.stop(now + 0.2);
 
-        // 2. Sub-Impact Blast
+        // 2. Sub Impact
         const impactTime = now + 0.12;
         const subImpact = audioCtx.createOscillator();
         const subGain = audioCtx.createGain();
@@ -250,18 +263,20 @@ function playVaultDoorSequence() {
         subImpact.start(impactTime);
         subImpact.stop(impactTime + 0.45);
 
-        // 3. Hydraulic Pneumatic Release
+        // 3. Hydraulic Release
         const doorReleaseTime = now + 0.25;
         const doorDuration = 0.6;
 
-        const noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * doorDuration, audioCtx.sampleRate);
-        const noiseData = noiseBuffer.getChannelData(0);
-        for (let i = 0; i < noiseData.length; i++) {
-            noiseData[i] = Math.random() * 2 - 1;
+        if (!cachedNoiseBuffer) {
+            cachedNoiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * doorDuration, audioCtx.sampleRate);
+            const noiseData = cachedNoiseBuffer.getChannelData(0);
+            for (let i = 0; i < noiseData.length; i++) {
+                noiseData[i] = Math.random() * 2 - 1;
+            }
         }
 
         const noiseSrc = audioCtx.createBufferSource();
-        noiseSrc.buffer = noiseBuffer;
+        noiseSrc.buffer = cachedNoiseBuffer;
 
         const doorFilter = audioCtx.createBiquadFilter();
         doorFilter.type = 'lowpass';
@@ -296,11 +311,7 @@ function triggerVaultDoorOpen() {
     setTimeout(() => {
         if (vaultWrapper) {
             vaultWrapper.classList.add("open");
-            // Hide element from DOM layout once door animation finishes
             setTimeout(() => { vaultWrapper.style.display = 'none'; }, 1000);
-        } else {
-            $('loginScreen')?.classList.add('hidden');
-            $('joinForm')?.classList.remove('hidden');
         }
     }, 150);
 
@@ -310,7 +321,7 @@ function triggerVaultDoorOpen() {
 }
 
 // ==========================================
-// 3. Room & Standings UI Controls
+// Room & UI Event Listeners
 // ==========================================
 saveGameBtn?.addEventListener('click', () => {
     window.socket?.emit("save_game_progress");
@@ -318,39 +329,15 @@ saveGameBtn?.addEventListener('click', () => {
     saveGameBtn.innerText = "Saving... 💾";
 });
 
-copyRoomBtn?.addEventListener('click', () => {
+$('copyCodeBtn')?.addEventListener('click', () => {
     if (!currentRoomCode) return;
-    const shareUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomCode}`;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-        const btnSpan = copyRoomBtn.querySelector('span');
+    navigator.clipboard.writeText(currentRoomCode).then(() => {
+        const btnSpan = $('copyCodeBtn')?.querySelector('span');
         if (btnSpan) {
-            btnSpan.innerText = 'Copied! ✅';
-            setTimeout(() => btnSpan.innerText = 'Copy Link', 2000);
+            btnSpan.innerText = 'Copied Code! ✅';
+            setTimeout(() => { btnSpan.innerText = 'Code 📋'; }, 2000);
         }
     });
-});
-
-createRoomBtn?.addEventListener('click', () => {
-    const nickname = (creatorNickInput?.value || '').trim().toUpperCase();
-    const username = currentPlayerData ? currentPlayerData.username : nickname;
-    
-    if (nickname) {
-        sessionStorage.setItem("current_nickname", nickname);
-        window.socket?.emit('hostless-create-room', { nickname, username });
-    } else {
-        alert("Please type a nickname!");
-    }
-});
-
-joinBtn?.addEventListener('click', () => {
-    const roomCode = roomInput?.value.trim().toUpperCase() || '';
-    const nickname = nickInput?.value.trim().toUpperCase() || '';
-    const username = currentPlayerData ? currentPlayerData.username : nickname;
-
-    if (roomCode && nickname) {
-        sessionStorage.setItem("current_nickname", nickname);
-        window.socket?.emit('join-room', { roomCode, nickname, username });
-    }
 });
 
 leaveRoomBtn?.addEventListener('click', () => {
@@ -384,7 +371,7 @@ function renderStandings(players) {
 }
 
 // ==========================================
-// 4. Gameplay Logic & Socket Handlers
+// Gameplay Mechanics & Socket Handlers
 // ==========================================
 const submitGuess = () => {
     if (!guessInput) return;
@@ -428,10 +415,11 @@ function resetLetterBankTiles() {
 
 function setupGameplaySocketListeners() {
     const socket = window.socket;
-    if (!socket) return;
+    if (!socket || socketListenersInitialized) return;
+    socketListenersInitialized = true;
 
-    socket.on("game_saved_success", ({ score }) => {
-        alert(`Game saved! Current total score (${score} PTS) preserved in Vault.`);
+    socket.on("game_saved_success", ({ roomCode, score }) => {
+        alert(`Game progress saved!\nRoom Code: [${roomCode}]\nCurrent Score: ${score} PTS`);
         if (saveGameBtn) {
             saveGameBtn.disabled = false;
             saveGameBtn.innerText = "Save Game 💾";
@@ -450,9 +438,14 @@ function setupGameplaySocketListeners() {
         currentRoomCode = roomCode;
         sessionStorage.setItem("current_room_code", roomCode);
 
+        triggerVaultDoorOpen();
+
         if (roomCodeBadge) roomCodeBadge.innerText = `[${roomCode}]`;
         
-        joinForm?.classList.add('hidden');
+        // Hide Main Lobby Card
+        const formPanel = document.querySelector('.form-panel');
+        if (formPanel) formPanel.classList.add('hidden');
+        
         resultsScreen?.classList.add('hidden');
         
         roomHeader?.classList.remove('hidden');

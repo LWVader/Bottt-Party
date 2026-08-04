@@ -12,30 +12,29 @@ const io = new Server(server, {
         methods: ["GET", "POST"]
     }
 });
+
 const roomTimers = new Map();
 
-// Serve static frontend assets
+// Middleware
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Initialize SQLite persistent database
 const db = new Database('database.db');
 db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
 
-// 1. Safe Column Migrations
-try { db.exec(`ALTER TABLE rooms ADD COLUMN used_puzzles TEXT DEFAULT '';`); } catch (e) {}
-try { db.exec(`ALTER TABLE players ADD COLUMN attempts INTEGER DEFAULT 0;`); } catch (e) {}
-try { db.exec(`ALTER TABLE players ADD COLUMN username TEXT DEFAULT '';`); } catch (e) {}
-try { db.exec(`ALTER TABLE players_vault ADD COLUMN password TEXT DEFAULT '';`); } catch (e) {}
-
-// 2. Table Initializations
+// 1. Table Initializations
 db.exec(`
     CREATE TABLE IF NOT EXISTS rooms (
         room_code TEXT PRIMARY KEY,
         game_state TEXT DEFAULT 'LOBBY',
-        current_word TEXT,
-        current_clue TEXT,
-        avatar_url TEXT,
-        used_puzzles TEXT DEFAULT ''
+        current_word TEXT DEFAULT '',
+        current_clue TEXT DEFAULT '',
+        avatar_url TEXT DEFAULT '',
+        used_puzzles TEXT DEFAULT '',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS players (
@@ -48,52 +47,43 @@ db.exec(`
         attempts INTEGER DEFAULT 0,
         correct_this_round INTEGER DEFAULT 0,
         is_connected INTEGER DEFAULT 1,
-        FOREIGN KEY(room_code) REFERENCES rooms(room_code)
-    );
-
-    CREATE TABLE IF NOT EXISTS players_vault (
-        username TEXT PRIMARY KEY,
-        password TEXT NOT NULL DEFAULT '',
-        games_played INTEGER DEFAULT 0,
-        wins INTEGER DEFAULT 0,
-        score INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        FOREIGN KEY(room_code) REFERENCES rooms(room_code) ON DELETE CASCADE
     );
 `);
 
-// 3. Prepared Statements
+// 2. Prepared Statements
 const stmts = {
-    // Vault Statements
-    getVaultPlayer: db.prepare(`SELECT * FROM players_vault WHERE username = ?`),
-    createVaultPlayer: db.prepare(`INSERT INTO players_vault (username, password) VALUES (?, ?)`),
-    updateVaultPlayerStats: db.prepare(`
-        UPDATE players_vault 
-        SET games_played = games_played + 1, 
-            wins = wins + ?, 
-            score = score + ? 
-        WHERE username = ?
-    `),
-    savePlayerProgress: db.prepare(`
-        UPDATE players_vault 
-        SET score = COALESCE(score, 0) + ?, games_played = games_played + 1 
-        WHERE username = ?
+    // --- Room & Session Statements ---
+    getRoom: db.prepare(`SELECT * FROM rooms WHERE room_code = ?`),
+    
+    saveRoomState: db.prepare(`
+        INSERT INTO rooms (room_code, game_state, current_word, current_clue, avatar_url, used_puzzles, updated_at)
+        VALUES (@room_code, @game_state, @current_word, @current_clue, @avatar_url, @used_puzzles, CURRENT_TIMESTAMP)
+        ON CONFLICT(room_code) DO UPDATE SET
+            game_state = excluded.game_state,
+            current_word = excluded.current_word,
+            current_clue = excluded.current_clue,
+            avatar_url = excluded.avatar_url,
+            used_puzzles = excluded.used_puzzles,
+            updated_at = CURRENT_TIMESTAMP
     `),
 
-    // Room Statements
-    getRoom: db.prepare(`SELECT * FROM rooms WHERE room_code = ?`),
     createRoom: db.prepare(`INSERT INTO rooms (room_code, game_state) VALUES (?, 'PLAYING')`),
     getRoomUsedPuzzles: db.prepare(`SELECT used_puzzles FROM rooms WHERE room_code = ?`),
     updateRoomUsedPuzzles: db.prepare(`UPDATE rooms SET used_puzzles = ? WHERE room_code = ?`),
+    
     updateRoomState: db.prepare(`
         UPDATE rooms 
-        SET current_word = ?, current_clue = ?, avatar_url = ?, game_state = 'PLAYING' 
+        SET current_word = ?, current_clue = ?, avatar_url = ?, game_state = 'PLAYING', updated_at = CURRENT_TIMESTAMP
         WHERE room_code = ?
     `),
-    updateRoomResultsState: db.prepare(`UPDATE rooms SET game_state = 'RESULTS' WHERE room_code = ?`),
+    
+    updateRoomResultsState: db.prepare(`UPDATE rooms SET game_state = 'RESULTS', updated_at = CURRENT_TIMESTAMP WHERE room_code = ?`),
 
-    // Player Statements
+    // --- Player Statements ---
     getPlayerBySocket: db.prepare(`SELECT * FROM players WHERE player_id = ?`),
     getPlayerByNickname: db.prepare(`SELECT * FROM players WHERE room_code = ? AND nickname = ?`),
+    getPlayersInRoom: db.prepare(`SELECT * FROM players WHERE room_code = ?`),
     
     insertPlayer: db.prepare(`
         INSERT INTO players (player_id, room_code, nickname, username, total_score, has_guessed, attempts, correct_this_round, is_connected) 
@@ -105,9 +95,10 @@ const stmts = {
         SET player_id = ?, username = ?, is_connected = 1 
         WHERE room_code = ? AND nickname = ?
     `),
+    
     updatePlayerDisconnect: db.prepare(`UPDATE players SET is_connected = 0 WHERE player_id = ?`),
     
-    // Guess & Attempt Tracking 
+    // --- Guess & Attempt Tracking ---
     incrementAttempts: db.prepare(`UPDATE players SET attempts = attempts + 1 WHERE player_id = ?`),
     
     updatePlayerCorrectGuess: db.prepare(`
@@ -122,21 +113,23 @@ const stmts = {
         WHERE room_code = ?
     `),
 
-    // Round Progression & Active Player Checks
+    // --- Round Progression & Active Player Checks ---
     getCorrectCountThisRound: db.prepare(`
         SELECT COUNT(*) AS count FROM players 
         WHERE room_code = ? AND correct_this_round = 1
     `),
+    
     getTotalActivePlayers: db.prepare(`
         SELECT COUNT(*) AS count FROM players 
         WHERE room_code = ? AND is_connected = 1
     `),
+    
     getFinishedActivePlayers: db.prepare(`
         SELECT COUNT(*) AS count FROM players 
         WHERE room_code = ? AND is_connected = 1 AND (has_guessed = 1 OR attempts >= 3)
     `),
 
-    // Standings / Scoreboard 
+    // --- Standings / Scoreboard ---
     getStandings: db.prepare(`
         SELECT 
             username, 
@@ -151,14 +144,82 @@ const stmts = {
         ORDER BY total_score DESC
     `)
 };
+
 // ==========================================
-// EXPRESS ROUTING & STATIC ASSETS
+// EXPRESS ROUTES
 // ==========================================
 
-app.use(express.static(path.join(__dirname, 'public')));
-
+// Serve main entry page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'game.html'));
+});
+
+// REST Endpoint: Save Game State
+app.post('/api/save-game', (req, res) => {
+    const { room_code, game_state, current_word, current_clue, avatar_url, used_puzzles } = req.body;
+
+    if (!room_code || typeof room_code !== 'string') {
+        return res.status(400).json({ success: false, message: 'Valid room code is required.' });
+    }
+
+    try {
+        const normalizedCode = room_code.trim().toUpperCase();
+        stmts.saveRoomState.run({
+            room_code: normalizedCode,
+            game_state: game_state || 'PLAYING',
+            current_word: current_word || '',
+            current_clue: current_clue || '',
+            avatar_url: avatar_url || '',
+            used_puzzles: Array.isArray(used_puzzles) ? used_puzzles.join(',') : (used_puzzles || '')
+        });
+
+        return res.json({ success: true, message: `Room ${normalizedCode} saved successfully.` });
+    } catch (err) {
+        console.error('Error saving room state:', err);
+        return res.status(500).json({ success: false, message: 'Database save failed.' });
+    }
+});
+
+// REST Endpoint: Load Game State
+app.get('/api/load-game/:roomCode', (req, res) => {
+    const roomCode = req.params.roomCode.trim().toUpperCase();
+
+    try {
+        const room = stmts.getRoom.get(roomCode);
+        if (!room) {
+            return res.status(404).json({ success: false, message: 'Room code not found.' });
+        }
+
+        const players = stmts.getPlayersInRoom.all(roomCode);
+
+        return res.json({
+            success: true,
+            room: {
+                ...room,
+                used_puzzles: room.used_puzzles ? room.used_puzzles.split(',') : []
+            },
+            players
+        });
+    } catch (err) {
+        console.error('Error loading room state:', err);
+        return res.status(500).json({ success: false, message: 'Database query failed.' });
+    }
+});
+
+// Graceful Shutdown
+const handleShutdown = () => {
+    console.log('Closing SQLite database connection...');
+    db.close();
+    process.exit(0);
+};
+
+process.on('SIGINT', handleShutdown);
+process.on('SIGTERM', handleShutdown);
+
+// Start Server
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
 });
 
 const PUZZLE_BANK = [
@@ -412,7 +473,7 @@ const PUZZLE_BANK = [
         imageSrc: "https://api.dicebear.com/10.x/bottts/svg?backgroundColor=e72e0d,7f2974,0e6fd8&backgroundColorFill=linear&textureProbability=100&headVariant=square01,square02,square03,square04&seed=osa8m8tm", 
         clue: "Blocky engineering and heavy-set design, my features are bound by a rigid line. With sharp ninety degrees at every border, I am a machine built for geometric order." 
     },
-
+// AI CREATED PUZZLE IMAGES ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     // === PROCEDURAL/ABSTRACT STYLES ===
     { 
         word: "STRIPES", 
@@ -497,6 +558,7 @@ const PUZZLE_BANK = [
         clue: "I stand on pillars, tall and grand, A vault of green within the land. I guard the wealth of poor and king, Yet of myself, I own no thing." 
     }
 ];
+// AI CREATED PUZZLE IMAGES ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 // Constants
 const MAX_ATTEMPTS = 3;
@@ -544,6 +606,10 @@ function getPuzzleImage(puzzle) {
 }
 
 function getNextUniquePuzzle(roomCode) {
+    if (!PUZZLE_BANK || PUZZLE_BANK.length === 0) {
+        return { word: 'DEFAULT', clue: 'Default puzzle clue', style: 'bottts' };
+    }
+
     const room = stmts.getRoomUsedPuzzles.get(roomCode);
     let usedWords = room && room.used_puzzles ? room.used_puzzles.split(',').filter(Boolean) : [];
     let availablePuzzles = PUZZLE_BANK.filter(p => !usedWords.includes(p.word));
@@ -587,7 +653,7 @@ function checkAndAdvanceRound(roomCode) {
 
     if (!totalActive || totalActive.count === 0) return;
 
-    if (finishedActive.count >= totalActive.count) {
+    if (finishedActive && finishedActive.count >= totalActive.count) {
         if (roomTimers.has(roomCode)) return;
 
         const room = stmts.getRoom.get(roomCode);
@@ -601,13 +667,6 @@ function checkAndAdvanceRound(roomCode) {
             correctWord: room.current_word 
         });
 
-        updatedStandings.forEach((player, index) => {
-            if (player.username) {
-                const isWinner = index === 0 && player.score > 0;
-                stmts.updateVaultPlayerStats.run(isWinner ? 1 : 0, player.score || 0, player.username);
-            }
-        });
-
         const timer = setTimeout(() => {
             roomTimers.delete(roomCode);
             runNextRoundSetup(roomCode);
@@ -616,73 +675,88 @@ function checkAndAdvanceRound(roomCode) {
         roomTimers.set(roomCode, timer);
     }
 }
+
+// Common helper to handle player connection logic
+function upsertPlayerAndJoin(socket, roomCode, nickname) {
+    const cleanRoom = roomCode.trim().toUpperCase();
+    const cleanNickname = (nickname || 'AGENT').trim().toUpperCase();
+    
+    const room = stmts.getRoom.get(cleanRoom);
+    if (!room) {
+        socket.emit('error-message', `NO VAULT FOUND FOR ROOM [${cleanRoom}]`);
+        return null;
+    }
+
+    const existingPlayer = stmts.getPlayerByNickname.get(cleanRoom, cleanNickname);
+
+    if (existingPlayer) {
+        // Correct parameter mapping: player_id, username, room_code, nickname
+        stmts.updatePlayerReconnect.run(socket.id, cleanNickname, cleanRoom, cleanNickname);
+    } else {
+        // Correct parameter mapping: player_id, room_code, nickname, username
+        stmts.insertPlayer.run(socket.id, cleanRoom, cleanNickname, cleanNickname);
+    }
+
+    socket.join(cleanRoom);
+    socket.emit('player-joined-success', { roomCode: cleanRoom, nickname: cleanNickname });
+
+    const updatedStandings = stmts.getStandings.all(cleanRoom);
+    io.to(cleanRoom).emit('update-player-scores', { standings: updatedStandings });
+
+    if (room.game_state === 'PLAYING' && room.current_word) {
+        socket.emit('player-start-puzzle', { 
+            scrambledLetters: scrambleWord(room.current_word),
+            avatarUrl: room.avatar_url,
+            clue: room.current_clue
+        });
+    }
+
+    return cleanRoom;
+}
+
 // ==========================================
 // SOCKET.IO EVENT HANDLERS
 // ==========================================
 io.on('connection', (socket) => {
-    socket.on('player_vault_login', ({ username, password }) => {
-        if (!username || !password) {
-            return socket.emit('vault_login_error', 'USERNAME AND PASSWORD REQUIRED');
+
+    // --- RE-ENTER GAME WITH ROOM CODE ---
+    socket.on('load_game_with_code', ({ roomCode, nickname }) => {
+        if (!roomCode) {
+            return socket.emit('error-message', 'ROOM CODE REQUIRED');
         }
-        
-        const cleanUser = username.trim().toUpperCase();
-        const cleanPass = password.trim();
-
-        try {
-            let player = stmts.getVaultPlayer.get(cleanUser);
-
-            if (!player) {
-                stmts.createVaultPlayer.run(cleanUser, cleanPass);
-                player = stmts.getVaultPlayer.get(cleanUser);
-            } else if (player.password !== cleanPass) {
-                return socket.emit('vault_login_error', 'INCORRECT PASSWORD');
-            }
-
-            socket.username = cleanUser;
-            const { password: _, ...safeProfile } = player;
-            socket.emit('vault_login_success', safeProfile);
-        } catch (err) {
-            console.error('Vault DB Error:', err);
-            socket.emit('vault_login_error', 'DATABASE ERROR: ACCESS DENIED');
-        }
+        upsertPlayerAndJoin(socket, roomCode, nickname);
     });
 
+    // --- SAVE GAME PROGRESS ---
     socket.on('save_game_progress', () => {
         const player = stmts.getPlayerBySocket.get(socket.id);
-        const vaultUsername = socket.username || (player ? player.username : null);
 
-        if (!player || !vaultUsername) {
+        if (!player) {
             return socket.emit('game_saved_error', 'No active session found.');
         }
 
         try {
-            stmts.savePlayerProgress.run(player.total_score || 0, vaultUsername);
-            
-            const vaultPlayer = stmts.getVaultPlayer.get(vaultUsername);
-            const updatedScore = vaultPlayer ? vaultPlayer.score : (player.total_score || 0);
-
-            socket.emit('game_saved_success', { score: updatedScore });
+            socket.emit('game_saved_success', { 
+                roomCode: player.room_code,
+                score: player.total_score || 0 
+            });
         } catch (err) {
             console.error('Save Error:', err);
-            socket.emit('game_saved_error', 'Failed to save game state.');
+            socket.emit('game_saved_error', 'Failed to record game state.');
         }
     });
 
-    socket.on('hostless-create-room', ({ nickname, username }) => {
+    // --- HOSTLESS ROOM CREATION ---
+    socket.on('hostless-create-room', ({ nickname }) => {
         let roomCode;
-        let exists = true;
+        do {
+            roomCode = generateRoomCode();
+        } while (stmts.getRoom.get(roomCode));
         
-        while (exists) {
-            roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-            exists = !!stmts.getRoom.get(roomCode);
-        }
-        
-        const cleanNickname = (nickname || username || socket.username || 'PLAYER').toUpperCase().trim();
-        const vaultUsername = (username || socket.username || cleanNickname).toUpperCase().trim();
-        socket.username = vaultUsername;
+        const cleanNickname = (nickname || 'PLAYER').trim().toUpperCase();
 
         stmts.createRoom.run(roomCode);
-        stmts.insertPlayer.run(socket.id, roomCode, cleanNickname, vaultUsername);
+        stmts.insertPlayer.run(socket.id, roomCode, cleanNickname, cleanNickname);
 
         socket.join(roomCode);
         socket.emit('player-joined-success', { roomCode, nickname: cleanNickname });
@@ -693,46 +767,21 @@ io.on('connection', (socket) => {
         runNextRoundSetup(roomCode);
     });
 
-    socket.on('join-room', ({ roomCode, nickname, username }) => {
-        if (!roomCode || !nickname) return socket.emit('error-message', 'Missing room code or nickname!');
-
-        const cleanRoom = roomCode.toUpperCase().trim();
-        const cleanNickname = nickname.toUpperCase().trim();
-        const vaultUsername = (username || socket.username || cleanNickname).toUpperCase().trim();
-        socket.username = vaultUsername;
-
-        const room = stmts.getRoom.get(cleanRoom);
-        if (!room) return socket.emit('error-message', 'Room not found!');
-
-        const existingPlayer = stmts.getPlayerByNickname.get(cleanRoom, cleanNickname);
-
-        if (existingPlayer) {
-            stmts.updatePlayerReconnect.run(socket.id, vaultUsername, cleanRoom, cleanNickname);
-        } else {
-            stmts.insertPlayer.run(socket.id, cleanRoom, cleanNickname, vaultUsername);
+    // --- JOIN EXISTING ROOM ---
+    socket.on('join-room', ({ roomCode, nickname }) => {
+        if (!roomCode || !nickname) {
+            return socket.emit('error-message', 'Missing room code or nickname!');
         }
-
-        socket.join(cleanRoom);
-        socket.emit('player-joined-success', { roomCode: cleanRoom, nickname: cleanNickname });
-
-        const updatedStandings = stmts.getStandings.all(cleanRoom);
-        io.to(cleanRoom).emit('update-player-scores', { standings: updatedStandings });
-
-        if (room.game_state === 'PLAYING' && room.current_word) {
-            socket.emit('player-start-puzzle', { 
-                scrambledLetters: scrambleWord(room.current_word),
-                avatarUrl: room.avatar_url,
-                clue: room.current_clue
-            });
-        }
+        upsertPlayerAndJoin(socket, roomCode, nickname);
     });
 
+    // --- SUBMIT GUESS ---
     socket.on('submit-guess', ({ guess }) => {
         const player = stmts.getPlayerBySocket.get(socket.id);
         if (!player || player.has_guessed === 1 || player.attempts >= MAX_ATTEMPTS) return;
 
         const room = stmts.getRoom.get(player.room_code);
-        if (!room || room.game_state !== 'PLAYING') return;
+        if (!room || room.game_state !== 'PLAYING' || !room.current_word) return;
 
         stmts.incrementAttempts.run(socket.id);
         const updatedAttempts = player.attempts + 1;
@@ -769,6 +818,7 @@ io.on('connection', (socket) => {
         checkAndAdvanceRound(player.room_code);
     });
 
+    // --- DISCONNECT ---
     socket.on('disconnect', () => {
         const player = stmts.getPlayerBySocket.get(socket.id);
         stmts.updatePlayerDisconnect.run(socket.id);
@@ -781,8 +831,5 @@ io.on('connection', (socket) => {
         }
     });
 });
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`Server listening on port ${PORT}`));
 
 module.exports = { app, server, io };

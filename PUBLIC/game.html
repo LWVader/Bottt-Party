@@ -17,7 +17,7 @@
 <body>
 
     <!-- ========================================== -->
-    <!-- VAULT SPLIT-SCREEN INTRO & LOGIN           -->
+    <!-- VAULT SPLIT-SCREEN INTRO & ACCESS          -->
     <!-- ========================================== -->
     <div id="vaultWrapper" class="vault-wrapper">
         <!-- Sci-Fi Status Indicator Lights -->
@@ -43,22 +43,29 @@
 
         <!-- Central Interactive Login Card -->
         <div class="vault-inner-content">
-            <h2 class="card-title">CYBER VAULT ACCESS</h2>
-            <p class="vault-subtitle">Enter callsign and password to sync database profile</p>
+            <h2 class="card-title font-orbitron">CYBER VAULT ACCESS</h2>
+            <p class="vault-subtitle">Enter callsign to initialize or enter room code to rejoin</p>
 
-            <input id="loginUsername" type="text" placeholder="ENTER CALLSIGN" class="input-field font-orbitron text-center" autocomplete="username">
-            <input id="loginPassword" type="password" placeholder="ENTER PASSWORD" class="input-field font-orbitron text-center" autocomplete="current-password">
+            <!-- Name Input -->
+            <input id="loginUsername" type="text" placeholder="ENTER YOUR CALLSIGN" class="input-field font-orbitron text-center" autocomplete="username">
             
-            <button id="loginSubmitBtn" type="button" class="btn-primary font-orbitron w-full">
-                AUTHENTICATE 🔐
-            </button>
-            
-            <span id="loginStatus" class="font-orbitron vault-status-text"></span>
+            <!-- Rejoin Code Input -->
+            <div id="rejoinCodeContainer" class="rejoin-code-container hidden mt-2">
+                <input id="rejoinRoomCode" type="text" maxlength="6" placeholder="ROOM CODE (e.g. X7K9)" class="input-field input-code font-orbitron text-center">
+            </div>
 
-            <!-- Revealed upon successful login -->
-            <button id="enterGameBtn" type="button" class="btn-primary font-orbitron hidden btn-enter-game">
-                ENTER GAME 🚀
-            </button>
+            <!-- Primary Action Buttons -->
+            <div class="vault-actions-group">
+                <button id="loginSubmitBtn" type="button" class="btn-primary font-orbitron w-full">
+                    ENTER GAME 🚀
+                </button>
+                
+                <button id="toggleRejoinBtn" type="button" class="btn-secondary font-orbitron w-full mt-2">
+                    REJOIN WITH CODE 🔑
+                </button>
+            </div>
+            
+            <span id="loginStatus" class="font-orbitron vault-status-text" aria-live="polite"></span>
         </div>
     </div>
 
@@ -85,9 +92,9 @@
     <!-- MAIN INTERACTIVE CONTENT                   -->
     <!-- ========================================== -->
     <main class="main-container">
-        <h1 class="app-title">Word Bottts</h1>
+        <h1 class="app-title font-orbitron">Word Bottts</h1>
 
-        <!-- ROOM CODE DISPLAY & SAVE ACTION -->
+        <!-- ROOM CODE DISPLAY & ACTION BUTTONS -->
         <div id="roomHeader" class="room-header hidden">
             <div class="room-info font-orbitron">
                 <span class="room-label">Room:</span>
@@ -95,20 +102,17 @@
             </div>
             <div class="room-actions">
                 <button id="saveGameBtn" type="button" class="copy-btn font-orbitron btn-save-game">
-                    <span>Save Game 💾</span>
+                    <span>Save Game</span>
                 </button>
-                <button id="copyRoomBtn" type="button" class="copy-btn font-orbitron">
-                    <span>Copy Link</span>
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="copy-icon">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
-                    </svg>
+
+                <button id="copyCodeBtn" type="button" class="copy-btn font-orbitron">
+                    <span>Copy Code</span>
                 </button>
             </div>
         </div>
 
         <!-- TOP DASHBOARD: CHAMPION BADGE & STANDINGS -->
         <div id="topDashboard" class="top-dashboard-row hidden">
-            <!-- CHAMPION EMBLEM BADGE -->
             <div id="championBadge" class="champion-badge">
                 <div class="emblem-wrapper">
                     <svg class="cyber-shield" viewBox="0 0 100 100">
@@ -124,11 +128,10 @@
                 </div>
             </div>
 
-            <!-- DASHBOARD & STANDINGS -->
             <div id="controllerDashboard" class="dashboard-container">
                 <div class="scoreboard-card neon-border-cyan">
                     <div class="scoreboard-header">
-                        <h3 class="card-title font-orbitron m-0">Player Standing List</h3>
+                        <h3 class="card-title font-orbitron m-0">Player Standings</h3>
                         <span class="rate-badge font-orbitron">Rate</span>
                     </div>
                     <div id="playerScoreboardList" class="scoreboard-list"></div>
@@ -136,28 +139,50 @@
             </div>
         </div>
 
-        <!-- LOBBY SCREEN -->
-        <div id="joinForm" class="form-panel">
-            <div class="card-box">
-                <h3 class="card-title font-orbitron">Start a New Game</h3>
-                <input id="creatorNickInput" type="text" placeholder="YOUR NICKNAME" class="input-field font-orbitron">
-                <button id="createRoomBtn" type="button" class="btn-primary font-orbitron">
-                    Create & Launch Room 🚀
+        <!-- LOBBY SCREEN (2-BOX LAYOUT) -->
+        <div class="form-panel">
+            <!-- BOX 1: CREATE NEW GAME -->
+            <div class="card-box neon-border-pink">
+                <h2 class="card-title font-orbitron">Start a New Game</h2>
+                <p style="text-align: center; color: #94a3b8; font-size: 0.85rem;">
+                    Launch A New Lobby With Your Name.🔮
+                </p>
+                <button id="btnCreateRoom" class="btn-primary font-orbitron">
+                    CREATE & LAUNCH ROOM 
                 </button>
             </div>
 
+            <!-- DIVIDER -->
             <div class="divider-container">
                 <div class="divider-line"></div>
-                <span class="divider-text font-orbitron neon-text-pink">OR</span>
+                <span class="divider-text font-orbitron">OR</span>
                 <div class="divider-line"></div>
             </div>
 
-            <div class="card-box">
-                <h3 class="card-title font-orbitron">Join Friends</h3>
-                <input id="roomInput" type="text" maxlength="4" placeholder="ROOM CODE" class="input-field input-code font-orbitron">
-                <input id="nickInput" type="text" placeholder="YOUR NICKNAME" class="input-field font-orbitron">
-                <button id="joinBtn" type="button" class="btn-secondary font-orbitron">
-                    Enter Existing Lobby
+            <!-- BOX 2: JOIN OR RE-ENTER GAME -->
+            <div class="card-box neon-border-cyan">
+                <h2 class="card-title font-orbitron">Join / Re-Enter Game 🧩</h2>
+                
+                <input 
+                    type="text" 
+                    id="joinRoomCode" 
+                    class="input-field input-code" 
+                    placeholder="ROOM CODE (E.G. X7K9)" 
+                    maxlength="6" 
+                    autocomplete="off" 
+                />
+                
+                <input 
+                    type="text" 
+                    id="joinNickname" 
+                    class="input-field" 
+                    placeholder="YOUR NICKNAME" 
+                    maxlength="15" 
+                    autocomplete="off" 
+                />
+
+                <button id="btnJoinRoom" class="btn-secondary font-orbitron">
+                    ENTER GAME LOBBY 🫆 
                 </button>
             </div>
         </div>
@@ -179,7 +204,6 @@
                     <circle class="inf-trail--2" cx="0" cy="0" />
                 </svg>
             </div>
-
             <div>
                 <h2 class="font-orbitron neon-text-pink waiting-title">Waiting...</h2>
                 <p class="waiting-subtitle">Preparing the next digital puzzle blueprint.</p>
@@ -208,15 +232,14 @@
             </div>
         </div>
 
-        <!-- RESULTS / WAITING SCREEN -->
+        <!-- RESULTS SCREEN -->
         <div id="resultsScreen" class="results-container hidden">
             <h1 class="results-title font-orbitron neon-text-pink">Round Over! 🏆</h1>
             <p class="results-subtitle">The secret word was: <span id="correctWordDisplay" class="secret-word font-orbitron neon-text-cyan">---</span></p>
             
-            <div id="resultsBox" class="results-box "></div>
+            <div id="resultsBox" class="results-box"></div>
             
-            <!-- NEXT GAME LOADER -->
-            <div class="next-game-loader-card ">
+            <div class="next-game-loader-card">
                 <div class="loader-infinity">
                     <svg class="inf-svg" viewBox="0 0 85 40">
                         <defs>
