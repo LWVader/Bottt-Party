@@ -149,8 +149,13 @@ const stmts = {
 // EXPRESS ROUTES
 // ==========================================
 
-// Serve main entry page
+// Route 1: Landing Vault Entry
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Route 2: Active Game Interface
+app.get('/game', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'game.html'));
 });
 
