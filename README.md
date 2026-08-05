@@ -59,8 +59,37 @@ Then open your browser to:
 
 ```text
 http://localhost:3000
+
 ```
 
+**Local Network Play (Same WIFI)**
+
+Playing on Smartphones (Local Wi-Fi Network)
+
+To use smartphones as wireless controllers while hosting the game on your computer:
+
+1. Connect your host computer and mobile devices to the same Wi-Fi network.
+2. Find your computer's local IP address.
+
+**Windows (Command Prompt):**
+```bash
+ipconfig
+```
+Look for the `IPv4 Address` entry (for example `192.168.1.45`).
+
+**Mac / Linux (Terminal):**
+```bash
+ifconfig
+```
+Look for the `inet` address under `en0`, `wlan0`, or the active network adaptor.
+
+3. On mobile phones, open a browser and enter:
+```text
+http://<YOUR-LOCAL-IP>:3000
+```
+Example:
+```text
+http://192.168.1.45:3000
 ---
 
 ## ▶️ How to Play

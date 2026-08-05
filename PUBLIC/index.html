@@ -1,93 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Bottts | Access Vault</title>
-    
-    <!-- Google Font: Orbitron -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
-    
-    <!-- External Dependencies -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" defer></script>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Bottts | Access Vault</title>
+  
+  <!-- Google Font: Orbitron -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+  
+  <!-- External Dependencies -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" defer></script>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-page="index">
 
-    <!-- ========================================== -->
-    <!-- VAULT SPLIT-SCREEN INTRO & ACCESS          -->
-    <!-- ========================================== -->
-    <div id="vaultWrapper" class="vault-wrapper">
-        <!-- Sci-Fi Status Indicator Lights -->
-        <div class="vault-status-bar" aria-hidden="true">
-            <div class="status-light" style="--d: 0s;"></div>
-            <div class="status-light" style="--d: -0.6s;"></div>
-            <div class="status-light" style="--d: -1.2s;"></div>
-        </div>
-
-        <!-- Left Blast Door Panel -->
-        <div class="vault-door vault-door-left" aria-hidden="true">
-            <div class="door-groove door-groove-1"></div>
-            <div class="door-groove door-groove-2"></div>
-            <div class="lock-wheel-half"></div>
-        </div>
-
-        <!-- Right Blast Door Panel -->
-        <div class="vault-door vault-door-right" aria-hidden="true">
-            <div class="door-groove door-groove-1"></div>
-            <div class="door-groove door-groove-2"></div>
-            <div class="lock-wheel-half"></div>
-        </div>
-
-        <!-- Central Interactive Login Card -->
-        <div class="vault-inner-content">
-            <h2 class="card-title font-orbitron">PUZZLE VAULT ACCESS</h2>
-            <p class="vault-subtitle">Enter name to start or enter room code to rejoin</p>
-
-            <!-- Name Input -->
-            <input id="loginUsername" type="text" placeholder="ENTER YOUR NAME" class="input-field font-orbitron text-center" autocomplete="username">
-            
-            <!-- Rejoin Code Input -->
-            <div id="rejoinCodeContainer" class="rejoin-code-container hidden mt-2">
-                <input id="rejoinRoomCode" type="text" maxlength="6" placeholder="ROOM CODE (e.g. X7K9)" class="input-field input-code font-orbitron text-center">
-            </div>
-
-            <!-- Primary Action Buttons -->
-            <div class="vault-actions-group">
-                <button id="loginSubmitBtn" type="button" class="btn-primary font-orbitron w-full">
-                    ENTER GAME 🪄
-                </button>
-                
-                <button id="toggleRejoinBtn" type="button" class="btn-secondary font-orbitron w-full mt-2">
-                    REJOIN WITH CODE 🔑
-                </button>
-            </div>
-            
-            <span id="loginStatus" class="font-orbitron vault-status-text" aria-live="polite"></span>
-        </div>
+  <!-- VAULT SPLIT-SCREEN INTRO & ACCESS -->
+  <div id="vaultWrapper" class="vault-wrapper">
+    <div class="vault-status-bar" aria-hidden="true">
+      <div class="status-light" style="--d: 0s;"></div>
+      <div class="status-light" style="--d: -0.6s;"></div>
+      <div class="status-light" style="--d: -1.2s;"></div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- BACKGROUND NEON DICE COLUMNS               -->
-    <!-- ========================================== -->
-    <div class="dice-column left" aria-hidden="true">
-        <div class="spin-dice">🎲</div>
-        <div class="spin-dice" style="--speed: 9s;">🎲</div>
-        <div class="spin-dice" style="--speed: 15s;">🎲</div>
-        <div class="spin-dice" style="--speed: 18s;">🎲</div>
-        <div class="spin-dice" style="--speed: 9s;">🎲</div>
+    <div class="vault-door vault-door-left" aria-hidden="true">
+      <div class="door-groove door-groove-1"></div>
+      <div class="door-groove door-groove-2"></div>
+      <div class="lock-wheel-half"></div>
     </div>
 
-    <div class="dice-column right" aria-hidden="true">
-        <div class="spin-dice" style="--speed: 18s;">🎲</div>
-        <div class="spin-dice" style="--speed: 15s;">🎲</div>
-        <div class="spin-dice" style="--speed: 9s;">🎲</div>
-        <div class="spin-dice">🎲</div>
-        <div class="spin-dice" style="--speed: 15s;">🎲</div>
+    <div class="vault-door vault-door-right" aria-hidden="true">
+      <div class="door-groove door-groove-1"></div>
+      <div class="door-groove door-groove-2"></div>
+      <div class="lock-wheel-half"></div>
     </div>
 
-    <script src="client.js"></script>
+    <!-- Central Interactive Login Card -->
+    <div class="vault-inner-content">
+      <h2 class="card-title font-orbitron">PUZZLE VAULT ACCESS</h2>
+      <p class="vault-subtitle">Enter name to start or enter room code to rejoin</p>
+
+      <form id="vaultAccessForm" action="javascript:void(0);">
+        <label for="loginUsername" class="sr-only">Enter Your Name</label>
+        <input 
+          id="loginUsername" 
+          type="text" 
+          placeholder="ENTER YOUR NAME" 
+          class="input-field font-orbitron text-center" 
+          autocomplete="username" 
+          required 
+        />
+        
+        <div id="rejoinCodeContainer" class="rejoin-code-container hidden mt-2">
+          <label for="rejoinRoomCode" class="sr-only">Room Code</label>
+          <input 
+            id="rejoinRoomCode" 
+            type="text" 
+            maxlength="6" 
+            placeholder="ROOM CODE (e.g. X7K9)" 
+            class="input-field input-code font-orbitron text-center" 
+            autocomplete="off" 
+          />
+        </div>
+
+        <div class="vault-actions-group">
+          <button id="loginSubmitBtn" type="submit" class="btn-primary font-orbitron w-full">
+            ENTER GAME 🪄
+          </button>
+          
+          <button id="toggleRejoinBtn" type="button" class="btn-secondary font-orbitron w-full mt-2">
+            REJOIN WITH CODE 🔑
+          </button>
+        </div>
+      </form>
+      
+      <span id="loginStatus" class="font-orbitron vault-status-text" aria-live="polite"></span>
+    </div>
+  </div>
+
+  <script src="client.js"></script>
 </body>
 </html>

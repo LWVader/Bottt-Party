@@ -168,7 +168,7 @@ An avatar image generates from the DiceBear API.
 
 Unscramble the letters in the Letter Bank to guess the secret word.
 
-Type your answer into the guess box and hit Submit Guess 🎯.
+Type your answer into the guess box and hit Submit Guess.
 
 Win & Score: Correct answers award points. Scores update immediately across all connected displays on the Player Standings leaderboard.
 
@@ -188,8 +188,8 @@ Bottt-Party/
 In compliance with Code:You Capstone guidelines regarding machine learning and generative tools, artificial intelligence assistants (ChatGPT / Gemini) were utilized strictly as learning aids and code design consultants during development.
 
 Specific Usage Areas:
-Images served from postimg are AI generated as dicebear did not have sufficient options for some areas. 
+line 497- Images served from postimg are AI generated as dicebear did not have sufficient options for some areas. 
 
-SQLite Prepared Statements: Provided guidance ONLY on better-sqlite3 syntax for transaction safety during score updating.
+line 54-SQLite Prepared Statements: AI used as reference ONLY for proper stmt syntax and SQLite prepared statement setup, Typed manually and tested.
 
 All AI-assisted logic was scrutinized, manually refactored, encapsulated into modular functions, and commented inline throughout server.js.

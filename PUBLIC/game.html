@@ -1,203 +1,251 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Bottts | Game Arena</title>
-    
-    <!-- Google Font: Orbitron -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
-    
-    <!-- External Dependencies -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" defer></script>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Bottts | Game Arena</title>
+  
+  <!-- Google Font: Orbitron -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&display=swap" rel="stylesheet">
+  
+  <!-- External Dependencies -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js" defer></script>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-page="game">
+    <!-- REUSABLE DICE GRADIENT DEFINITION -->
+<svg style="width: 0; height: 0; position: absolute;" aria-hidden="true">
+  <defs>
+    <linearGradient id="diceGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />   <!-- Electric Cyan -->
+      <stop offset="50%" stop-color="#f43f5e" />  <!-- Hot Neon Pink -->
+      <stop offset="100%" stop-color="#a855f7" /> <!-- Vivid Purple -->
+    </linearGradient>
+  </defs>
+</svg>
 
-    <!-- ========================================== -->
-    <!-- MAIN INTERACTIVE CONTENT                   -->
-    <!-- ========================================== -->
-    <main class="main-container">
-        <h1 class="app-title font-orbitron">Word Bottts</h1>
+  <!-- BACKGROUND NEON DICE COLUMNS -->
+  <div class="dice-column left" aria-hidden="true">
+    <div class="spin-dice">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+    <div class="spin-dice" style="--speed: 9s;">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+    <div class="spin-dice" style="--speed: 15s;">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+    <div class="spin-dice" style="--speed: 18s;">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+    <div class="spin-dice" style="--speed: 9s;">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+  </div>
 
-        <!-- ROOM CODE DISPLAY & ACTION BUTTONS -->
-        <div id="roomHeader" class="room-header hidden">
-            <div class="room-info font-orbitron">
-                <span class="room-label">Room:</span>
-                <span id="roomCodeBadge" class="neon-text-pink">[----]</span>
-            </div>
-            <div class="room-actions">
-                <button id="saveGameBtn" type="button" class="copy-btn font-orbitron btn-save-game">
-                    <span>Save Game</span>
-                </button>
+  <div class="dice-column right" aria-hidden="true">
+    <div class="spin-dice" style="--speed: 18s;">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+    <div class="spin-dice" style="--speed: 15s;">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+    <div class="spin-dice" style="--speed: 9s;">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+    <div class="spin-dice">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+    <div class="spin-dice" style="--speed: 15s;">
+      <svg class="dice-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><path d="M15 9h.01M9 15h.01M15 15h.01M9 9h.01M12 12h.01"/></svg>
+    </div>
+  </div>
 
-                <button id="copyCodeBtn" type="button" class="copy-btn font-orbitron">
-                    <span>Copy Code</span>
-                </button>
-            </div>
+  <main class="main-container">
+    <h1 class="app-title font-orbitron">Word Bottts</h1>
+
+    <!-- ROOM CODE DISPLAY & ACTION BUTTONS -->
+    <div id="roomHeader" class="room-header hidden">
+      <div class="room-info font-orbitron">
+        <span class="room-label">Room:</span>
+        <span id="roomCodeBadge" class="neon-text-pink">[----]</span>
+      </div>
+      <div class="room-actions">
+        <button id="saveGameBtn" type="button" class="copy-btn font-orbitron btn-save-game">
+          <span>Save Game</span>
+        </button>
+
+        <button id="copyCodeBtn" type="button" class="copy-btn font-orbitron">
+          <span>Copy Code</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TOP DASHBOARD: CHAMPION BADGE & STANDINGS -->
+    <div id="topDashboard" class="top-dashboard-row hidden">
+      <div id="championBadge" class="champion-badge">
+        <div class="emblem-wrapper">
+          <svg class="cyber-shield" viewBox="0 0 100 100" aria-hidden="true">
+            <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="shield-border" />
+            <polygon points="50,15 80,30 80,70 50,85 20,70 20,30" class="shield-core" />
+            <path d="M50 28 L55 42 L70 45 L58 55 L62 70 L50 60 L38 70 L42 55 L30 45 L45 42 Z" class="shield-icon" />
+          </svg>
+          <span class="badge-rank">#1</span>
         </div>
-
-        <!-- TOP DASHBOARD: CHAMPION BADGE & STANDINGS -->
-        <div id="topDashboard" class="top-dashboard-row hidden">
-            <div id="championBadge" class="champion-badge">
-                <div class="emblem-wrapper">
-                    <svg class="cyber-shield" viewBox="0 0 100 100">
-                        <polygon points="50,5 90,25 90,75 50,95 10,75 10,25" class="shield-border" />
-                        <polygon points="50,15 80,30 80,70 50,85 20,70 20,30" class="shield-core" />
-                        <path d="M50 28 L55 42 L70 45 L58 55 L62 70 L50 60 L38 70 L42 55 L30 45 L45 42 Z" class="shield-icon" />
-                    </svg>
-                    <span class="badge-rank">#1</span>
-                </div>
-                <div class="champion-text">
-                    <span class="badge-tag font-orbitron">CURRENT LEADER</span>
-                    <h3 id="championName" class="champion-name font-orbitron">---</h3>
-                </div>
-            </div>
-
-            <div id="controllerDashboard" class="dashboard-container">
-                <div class="scoreboard-card neon-border-cyan">
-                    <div class="scoreboard-header">
-                        <h3 class="card-title font-orbitron m-0">Player Standings</h3>
-                        <span class="rate-badge font-orbitron">Rate</span>
-                    </div>
-                    <div id="playerScoreboardList" class="scoreboard-list"></div>
-                </div>
-            </div>
+        <div class="champion-text">
+          <span class="badge-tag font-orbitron">CURRENT LEADER</span>
+          <h3 id="championName" class="champion-name font-orbitron">---</h3>
         </div>
+      </div>
 
-        <!-- LOBBY SCREEN (2-BOX LAYOUT) -->
-        <div class="form-panel">
-            <!-- BOX 1: CREATE NEW GAME -->
-            <div class="card-box neon-border-pink">
-                <h2 class="card-title font-orbitron">Start a New Game</h2>
-                <p style="text-align: center; color: #94a3b8; font-size: 0.85rem;">
-                    Launch A New Lobby With Your Name.🔮
-                </p>
-                <button id="btnCreateRoom" class="btn-primary font-orbitron">
-                    CREATE & LAUNCH ROOM 
-                </button>
-            </div>
-
-            <!-- DIVIDER -->
-            <div class="divider-container">
-                <div class="divider-line"></div>
-                <span class="divider-text font-orbitron">OR</span>
-                <div class="divider-line"></div>
-            </div>
-
-            <!-- BOX 2: JOIN OR RE-ENTER GAME -->
-            <div class="card-box neon-border-cyan">
-                <h2 class="card-title font-orbitron">Join / Re-Enter Game 🧩</h2>
-                
-                <input 
-                    type="text" 
-                    id="joinRoomCode" 
-                    class="input-field input-code" 
-                    placeholder="ROOM CODE (E.G. X7K9)" 
-                    maxlength="6" 
-                    autocomplete="off" 
-                />
-                
-                <input 
-                    type="text" 
-                    id="joinNickname" 
-                    class="input-field" 
-                    placeholder="YOUR NICKNAME" 
-                    maxlength="15" 
-                    autocomplete="off" 
-                />
-
-                <button id="btnJoinRoom" class="btn-secondary font-orbitron">
-                    ENTER GAME LOBBY 🫆 
-                </button>
-            </div>
+      <div id="controllerDashboard" class="dashboard-container">
+        <div class="scoreboard-card neon-border-cyan">
+          <div class="scoreboard-header">
+            <h3 class="card-title font-orbitron m-0">Player Standings</h3>
+            <span class="rate-badge font-orbitron">Rate</span>
+          </div>
+          <div id="playerScoreboardList" class="scoreboard-list"></div>
         </div>
+      </div>
+    </div>
 
-        <!-- WAITING SCREEN -->
-        <div id="waitingScreen" class="waiting-card hidden">
-            <div class="loader-infinity">
-                <svg class="inf-svg" viewBox="0 0 85 40">
-                    <defs>
-                        <linearGradient id="gradWaiting" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stop-color="#f43f5e" />
-                            <stop offset="50%" stop-color="#a855f7" />
-                            <stop offset="100%" stop-color="#06b6d4" />
-                        </linearGradient>
-                    </defs>
-                    <path class="inf-track" style="stroke: url(#gradWaiting);" d="M 10 20 C 10 5, 35 5, 42.5 20 C 50 35, 75 35, 75 20 C 75 5, 50 5, 42.5 20 C 35 35, 10 35, 10 20 Z" />
-                    <circle class="inf-dot" cx="0" cy="0" />
-                    <circle class="inf-trail--1" cx="0" cy="0" />
-                    <circle class="inf-trail--2" cx="0" cy="0" />
-                </svg>
-            </div>
-            <div>
-                <h2 class="font-orbitron neon-text-pink waiting-title">Waiting...</h2>
-                <p class="waiting-subtitle">Preparing the next digital puzzle blueprint.</p>
-            </div>
+    <!-- LOBBY SCREEN (2-BOX LAYOUT) -->
+    <div class="form-panel">
+      <!-- BOX 1: CREATE NEW GAME -->
+      <div class="card-box neon-border-pink">
+        <h2 class="card-title font-orbitron">Start a New Game</h2>
+        <p style="text-align: center; color: #94a3b8; font-size: 0.85rem;">
+          Launch A New Lobby With Your Name.🔮
+        </p>
+        <button id="btnCreateRoom" type="button" class="btn-primary font-orbitron">
+          CREATE &amp; LAUNCH ROOM 
+        </button>
+      </div>
+
+      <!-- DIVIDER -->
+      <div class="divider-container" aria-hidden="true">
+        <div class="divider-line"></div>
+        <span class="divider-text font-orbitron">OR</span>
+        <div class="divider-line"></div>
+      </div>
+
+      <!-- BOX 2: JOIN OR RE-ENTER GAME -->
+      <div class="card-box neon-border-cyan">
+        <h2 class="card-title font-orbitron">Join / Re-Enter Game 🧩</h2>
+        
+        <form id="joinRoomForm" action="javascript:void(0);">
+          <label for="joinRoomCode" class="sr-only">Room Code</label>
+          <input 
+            type="text" 
+            id="joinRoomCode" 
+            class="input-field input-code" 
+            placeholder="ROOM CODE (E.G. X7K9)" 
+            maxlength="6" 
+            autocomplete="off" 
+          />
+          
+          <label for="joinNickname" class="sr-only">Your Nickname</label>
+          <input 
+            type="text" 
+            id="joinNickname" 
+            class="input-field" 
+            placeholder="YOUR NICKNAME" 
+            maxlength="15" 
+            autocomplete="off" 
+          />
+
+          <button id="btnJoinRoom" type="submit" class="btn-secondary font-orbitron">
+            ENTER GAME LOBBY 🫆
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- WAITING SCREEN -->
+    <div id="waitingScreen" class="waiting-card hidden">
+      <div class="loader-infinity">
+        <svg class="inf-svg" viewBox="0 0 85 40" aria-hidden="true">
+          <defs>
+            <linearGradient id="gradWaiting" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#f43f5e" />
+              <stop offset="50%" stop-color="#a855f7" />
+              <stop offset="100%" stop-color="#06b6d4" />
+            </linearGradient>
+          </defs>
+          <path class="inf-track" style="stroke: url(#gradWaiting);" d="M 10 20 C 10 5, 35 5, 42.5 20 C 50 35, 75 35, 75 20 C 75 5, 50 5, 42.5 20 C 35 35, 10 35, 10 20 Z" />
+          <circle class="inf-dot" cx="0" cy="0" />
+          <circle class="inf-trail--1" cx="0" cy="0" />
+          <circle class="inf-trail--2" cx="0" cy="0" />
+        </svg>
+      </div>
+      <div>
+        <h2 class="font-orbitron neon-text-pink waiting-title">Waiting...</h2>
+        <p class="waiting-subtitle">Preparing the next digital puzzle blueprint.</p>
+      </div>
+    </div>
+
+    <!-- PUZZLE SCREEN -->
+    <div id="playerPuzzleScreen" class="puzzle-container hidden">
+      <div class="puzzle-card neon-border-cyan">
+        <h2 class="card-title font-orbitron puzzle-title">Who or What Am I? 🤔</h2>
+        <div class="avatar-frame">
+          <img id="puzzleImg" src="" class="avatar-img" alt="Secret Blueprint Avatar">
         </div>
+        <p id="clueText" class="clue-text"></p>
+      </div>
 
-        <!-- PUZZLE SCREEN -->
-        <div id="playerPuzzleScreen" class="puzzle-container hidden">
-            <div class="puzzle-card neon-border-cyan">
-                <h2 class="card-title font-orbitron puzzle-title">Who or What Am I? 🤔</h2>
-                <div class="avatar-frame">
-                    <img id="puzzleImg" src="" class="avatar-img" alt="Secret Blueprint Avatar">
-                </div>
-                <p id="clueText" class="clue-text"></p>
-            </div>
+      <div class="letter-bank-card neon-border-cyan">
+        <div class="bank-label font-orbitron">Letter Bank</div>
+        <div id="letterBank" class="letter-bank"></div>
+      </div>
+      
+      <div class="guess-section-wrapper">
+        <label for="guessInput" class="bank-label font-orbitron guess-label-pad">Guess</label>
+        <input id="guessInput" type="text" placeholder="Guess..." class="input-field input-code font-orbitron neon-border-cyan guess-input-lg" autocomplete="off">
+        <button id="submitGuessBtn" type="button" class="btn-primary font-orbitron btn-guess-lg">Submit Guess 🎯</button>
+      </div>
+    </div>
 
-            <div class="letter-bank-card neon-border-cyan">
-                <div class="bank-label font-orbitron">Letter Bank</div>
-                <div id="letterBank" class="letter-bank"></div>
-            </div>
-            
-            <div class="guess-section-wrapper">
-                <div class="bank-label font-orbitron guess-label-pad">Guess</div>
-                <input id="guessInput" type="text" placeholder="Guess..." class="input-field input-code font-orbitron neon-border-cyan guess-input-lg">
-                <button id="submitGuessBtn" type="button" class="btn-primary font-orbitron btn-guess-lg">Submit Guess 🎯</button>
-            </div>
+    <!-- RESULTS SCREEN -->
+    <div id="resultsScreen" class="results-container hidden">
+      <h1 class="results-title font-orbitron neon-text-pink">Round Over! 🏆</h1>
+      <p class="results-subtitle">The secret word was: <span id="correctWordDisplay" class="secret-word font-orbitron neon-text-cyan">---</span></p>
+      
+      <div id="resultsBox" class="results-box"></div>
+      
+      <div class="next-game-loader-card">
+        <div class="loader-infinity">
+          <svg class="inf-svg" viewBox="0 0 85 40" aria-hidden="true">
+            <defs>
+              <linearGradient id="gradNextGame" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#f43f5e" />
+                <stop offset="50%" stop-color="#a855f7" />
+                <stop offset="100%" stop-color="#06b6d4" />
+              </linearGradient>
+            </defs>
+            <path class="inf-track" style="stroke: url(#gradNextGame);" d="M 10 20 C 10 5, 35 5, 42.5 20 C 50 35, 75 35, 75 20 C 75 5, 50 5, 42.5 20 C 35 35, 10 35, 10 20 Z" />
+            <circle class="inf-dot" cx="0" cy="0" />
+            <circle class="inf-trail--1" cx="0" cy="0" />
+            <circle class="inf-trail--2" cx="0" cy="0" />
+          </svg>
         </div>
-
-        <!-- RESULTS SCREEN -->
-        <div id="resultsScreen" class="results-container hidden">
-            <h1 class="results-title font-orbitron neon-text-pink">Round Over! 🏆</h1>
-            <p class="results-subtitle">The secret word was: <span id="correctWordDisplay" class="secret-word font-orbitron neon-text-cyan">---</span></p>
-            
-            <div id="resultsBox" class="results-box"></div>
-            
-            <div class="next-game-loader-card">
-                <div class="loader-infinity">
-                    <svg class="inf-svg" viewBox="0 0 85 40">
-                        <defs>
-                            <linearGradient id="gradNextGame" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stop-color="#f43f5e" />
-                                <stop offset="50%" stop-color="#a855f7" />
-                                <stop offset="100%" stop-color="#06b6d4" />
-                            </linearGradient>
-                        </defs>
-                        <path class="inf-track" style="stroke: url(#gradNextGame);" d="M 10 20 C 10 5, 35 5, 42.5 20 C 50 35, 75 35, 75 20 C 75 5, 50 5, 42.5 20 C 35 35, 10 35, 10 20 Z" />
-                        <circle class="inf-dot" cx="0" cy="0" />
-                        <circle class="inf-trail--1" cx="0" cy="0" />
-                        <circle class="inf-trail--2" cx="0" cy="0" />
-                    </svg>
-                </div>
-                <div class="loading-text-group">
-                    <p class="next-round-text font-orbitron">LOADING NEXT MATCH...</p>
-                    <span class="loading-subtext">Preparing puzzle blueprint</span>
-                </div>
-            </div>
+        <div class="loading-text-group">
+          <p class="next-round-text font-orbitron">LOADING NEXT MATCH...</p>
+          <span class="loading-subtext">Preparing puzzle blueprint</span>
         </div>
+      </div>
+    </div>
 
-        <!-- LEAVE SESSION ACTION -->
-        <div class="leave-session-wrapper">
-            <button id="leaveRoomBtn" type="button" class="leave-btn font-orbitron hidden">
-                Leave Game Session 👋
-            </button>
-        </div>
-    </main>
+    <!-- LEAVE SESSION ACTION -->
+    <div class="leave-session-wrapper">
+      <button id="leaveRoomBtn" type="button" class="leave-btn font-orbitron hidden">
+        Leave Game Session 👋
+      </button>
+    </div>
+  </main>
 
-    <script src="client.js"></script>
+  <script src="client.js"></script>
 </body>
 </html>

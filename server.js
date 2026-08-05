@@ -51,7 +51,15 @@ db.exec(`
     );
 `);
 
-// 2. Prepared Statements
+ /**
+ * ============================================================================
+ * MODULE: Room & Game Database Manager (better-sqlite3)
+ * PURPOSE: Manages SQLite persistent storage for rooms, players, and game state.
+ * CITATION: AI used as reference ONLY for proper stmt syntax and SQLite 
+ *           prepared statement setup.
+ * ============================================================================
+ */
+
 const stmts = {
     // --- Room & Session Statements ---
     getRoom: db.prepare(`SELECT * FROM rooms WHERE room_code = ?`),
@@ -78,7 +86,7 @@ const stmts = {
         WHERE room_code = ?
     `),
     
-    updateRoomResultsState: db.prepare(`UPDATE rooms SET game_state = 'RESULTS', updated_at = CURRENT_TIMESTAMP WHERE room_code = ?`),
+     updateRoomResultsState: db.prepare(`UPDATE rooms SET game_state = 'RESULTS', updated_at = CURRENT_TIMESTAMP WHERE room_code = ?`),
 
     // --- Player Statements ---
     getPlayerBySocket: db.prepare(`SELECT * FROM players WHERE player_id = ?`),
@@ -144,6 +152,12 @@ const stmts = {
         ORDER BY total_score DESC
     `)
 };
+// ==================================================================================================
+
+// Make database & prepared statements globally accessible to socket modules
+global.stmts = stmts;
+global.io = io;
+global.roomTimers = roomTimers;
 
 // ==========================================
 // EXPRESS ROUTES
@@ -226,6 +240,8 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
 });
+
+module.exports = { app, server, io, db, stmts };
 
 const PUZZLE_BANK = [
     // === AVATAAARS STYLE ===
@@ -478,7 +494,15 @@ const PUZZLE_BANK = [
         imageSrc: "https://api.dicebear.com/10.x/bottts/svg?backgroundColor=e72e0d,7f2974,0e6fd8&backgroundColorFill=linear&textureProbability=100&headVariant=square01,square02,square03,square04&seed=osa8m8tm", 
         clue: "Blocky engineering and heavy-set design, my features are bound by a rigid line. With sharp ninety degrees at every border, I am a machine built for geometric order." 
     },
-// AI CREATED PUZZLE IMAGES ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/**
+ * ============================================================================
+ * MODULE: Puzzle Image Bank
+ * PURPOSE: Resolves direct image links hosted on Postimg for AI-generated puzzle 
+ *          visuals. Postimg is used as the external image hosting platform because 
+ *          DiceBear did not offer sufficient visual options for specific puzzle topics.
+ * CITATION: Only the puzzle images themselves were AI-created.
+ * ===============================================================================================================================================================================
+ */
     // === PROCEDURAL/ABSTRACT STYLES ===
     { 
         word: "STRIPES", 
@@ -563,8 +587,8 @@ const PUZZLE_BANK = [
         clue: "I stand on pillars, tall and grand, A vault of green within the land. I guard the wealth of poor and king, Yet of myself, I own no thing." 
     }
 ];
-// AI CREATED PUZZLE IMAGES ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
+  //=========================================================================================================================================================================
+ 
 // Constants
 const MAX_ATTEMPTS = 3;
 const ROUND_TRANSITION_DELAY_MS = 10000;
@@ -577,7 +601,7 @@ function generateRoomCode() {
 }
 
 function scrambleWord(word) {
-    if (!word) return '';
+    if (!word || typeof word !== 'string') return '';
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     let extraLetters = '';
     
@@ -611,13 +635,13 @@ function getPuzzleImage(puzzle) {
 }
 
 function getNextUniquePuzzle(roomCode) {
-    if (!PUZZLE_BANK || PUZZLE_BANK.length === 0) {
+    if (typeof PUZZLE_BANK === 'undefined' || !Array.isArray(PUZZLE_BANK) || PUZZLE_BANK.length === 0) {
         return { word: 'DEFAULT', clue: 'Default puzzle clue', style: 'bottts' };
     }
 
     const room = stmts.getRoomUsedPuzzles.get(roomCode);
     let usedWords = room && room.used_puzzles ? room.used_puzzles.split(',').filter(Boolean) : [];
-    let availablePuzzles = PUZZLE_BANK.filter(p => !usedWords.includes(p.word));
+    let availablePuzzles = PUZZLE_BANK.filter(p => p && p.word && !usedWords.includes(p.word));
 
     if (availablePuzzles.length === 0) {
         usedWords = [];
@@ -625,6 +649,10 @@ function getNextUniquePuzzle(roomCode) {
     }
 
     const chosenPuzzle = availablePuzzles[Math.floor(Math.random() * availablePuzzles.length)];
+    if (!chosenPuzzle) {
+        return { word: 'DEFAULT', clue: 'Default puzzle clue', style: 'bottts' };
+    }
+
     usedWords.push(chosenPuzzle.word);
     stmts.updateRoomUsedPuzzles.run(usedWords.join(','), roomCode);
 
@@ -683,8 +711,12 @@ function checkAndAdvanceRound(roomCode) {
 
 // Common helper to handle player connection logic
 function upsertPlayerAndJoin(socket, roomCode, nickname) {
+    if (!roomCode || typeof roomCode !== 'string') return null;
+    
     const cleanRoom = roomCode.trim().toUpperCase();
-    const cleanNickname = (nickname || 'AGENT').trim().toUpperCase();
+    const cleanNickname = (typeof nickname === 'string' && nickname.trim() !== '') 
+        ? nickname.trim().toUpperCase() 
+        : 'AGENT';
     
     const room = stmts.getRoom.get(cleanRoom);
     if (!room) {
@@ -722,119 +754,137 @@ function upsertPlayerAndJoin(socket, roomCode, nickname) {
 // ==========================================
 // SOCKET.IO EVENT HANDLERS
 // ==========================================
-io.on('connection', (socket) => {
+if (typeof io !== 'undefined') {
+    io.on('connection', (socket) => {
 
-    // --- RE-ENTER GAME WITH ROOM CODE ---
-    socket.on('load_game_with_code', ({ roomCode, nickname }) => {
-        if (!roomCode) {
-            return socket.emit('error-message', 'ROOM CODE REQUIRED');
-        }
-        upsertPlayerAndJoin(socket, roomCode, nickname);
-    });
+        // --- RE-ENTER GAME WITH ROOM CODE ---
+        socket.on('load_game_with_code', (data) => {
+            const { roomCode, nickname } = data || {};
+            if (!roomCode) {
+                return socket.emit('error-message', 'ROOM CODE REQUIRED');
+            }
+            upsertPlayerAndJoin(socket, roomCode, nickname);
+        });
 
-    // --- SAVE GAME PROGRESS ---
-    socket.on('save_game_progress', () => {
-        const player = stmts.getPlayerBySocket.get(socket.id);
+        // --- SAVE GAME PROGRESS ---
+        socket.on('save_game_progress', () => {
+            const player = stmts.getPlayerBySocket.get(socket.id);
 
-        if (!player) {
-            return socket.emit('game_saved_error', 'No active session found.');
-        }
+            if (!player) {
+                return socket.emit('game_saved_error', 'No active session found.');
+            }
 
-        try {
-            socket.emit('game_saved_success', { 
-                roomCode: player.room_code,
-                score: player.total_score || 0 
-            });
-        } catch (err) {
-            console.error('Save Error:', err);
-            socket.emit('game_saved_error', 'Failed to record game state.');
-        }
-    });
+            try {
+                socket.emit('game_saved_success', { 
+                    roomCode: player.room_code,
+                    score: player.total_score || 0 
+                });
+            } catch (err) {
+                console.error('Save Error:', err);
+                socket.emit('game_saved_error', 'Failed to record game state.');
+            }
+        });
 
-    // --- HOSTLESS ROOM CREATION ---
-    socket.on('hostless-create-room', ({ nickname }) => {
-        let roomCode;
-        do {
-            roomCode = generateRoomCode();
-        } while (stmts.getRoom.get(roomCode));
-        
-        const cleanNickname = (nickname || 'PLAYER').trim().toUpperCase();
-
-        stmts.createRoom.run(roomCode);
-        stmts.insertPlayer.run(socket.id, roomCode, cleanNickname, cleanNickname);
-
-        socket.join(roomCode);
-        socket.emit('player-joined-success', { roomCode, nickname: cleanNickname });
-
-        const currentStandings = stmts.getStandings.all(roomCode);
-        io.to(roomCode).emit('update-player-scores', { standings: currentStandings });
-
-        runNextRoundSetup(roomCode);
-    });
-
-    // --- JOIN EXISTING ROOM ---
-    socket.on('join-room', ({ roomCode, nickname }) => {
-        if (!roomCode || !nickname) {
-            return socket.emit('error-message', 'Missing room code or nickname!');
-        }
-        upsertPlayerAndJoin(socket, roomCode, nickname);
-    });
-
-    // --- SUBMIT GUESS ---
-    socket.on('submit-guess', ({ guess }) => {
-        const player = stmts.getPlayerBySocket.get(socket.id);
-        if (!player || player.has_guessed === 1 || player.attempts >= MAX_ATTEMPTS) return;
-
-        const room = stmts.getRoom.get(player.room_code);
-        if (!room || room.game_state !== 'PLAYING' || !room.current_word) return;
-
-        stmts.incrementAttempts.run(socket.id);
-        const updatedAttempts = player.attempts + 1;
-        const cleanGuess = (guess || '').trim().toUpperCase();
-        const isCorrect = cleanGuess === room.current_word.toUpperCase();
-
-        if (isCorrect) {
-            const fastestSolver = stmts.getCorrectCountThisRound.get(player.room_code);
-            const pointsAwarded = (!fastestSolver || fastestSolver.count === 0) ? 100 : 50;
-
-            stmts.updatePlayerCorrectGuess.run(pointsAwarded, socket.id);
+        // --- HOSTLESS ROOM CREATION ---
+        socket.on('hostless-create-room', (data) => {
+            const nickname = data ? data.nickname : null;
+            let roomCode;
+            do {
+                roomCode = generateRoomCode();
+            } while (stmts.getRoom.get(roomCode));
             
-            socket.emit('guess-result', { 
-                success: true, 
-                locked: true,
-                feedback: `Correct! +${pointsAwarded} pts` 
-            });
-        } else {
-            const attemptsLeft = MAX_ATTEMPTS - updatedAttempts;
+            const cleanNickname = (typeof nickname === 'string' && nickname.trim() !== '') 
+                ? nickname.trim().toUpperCase() 
+                : 'PLAYER';
 
-            socket.emit('guess-result', { 
-                success: false, 
-                locked: attemptsLeft === 0,
-                attemptsLeft,
-                feedback: attemptsLeft > 0 
-                    ? `Wrong! ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining.` 
-                    : 'No attempts remaining! Locked out for this round 🔒'
-            });
-        }
+            stmts.createRoom.run(roomCode);
+            stmts.insertPlayer.run(socket.id, roomCode, cleanNickname, cleanNickname);
 
-        const updatedStandings = stmts.getStandings.all(player.room_code);
-        io.to(player.room_code).emit('update-player-scores', { standings: updatedStandings });
+            socket.join(roomCode);
+            socket.emit('player-joined-success', { roomCode, nickname: cleanNickname });
 
-        checkAndAdvanceRound(player.room_code);
-    });
+            const currentStandings = stmts.getStandings.all(roomCode);
+            io.to(roomCode).emit('update-player-scores', { standings: currentStandings });
 
-    // --- DISCONNECT ---
-    socket.on('disconnect', () => {
-        const player = stmts.getPlayerBySocket.get(socket.id);
-        stmts.updatePlayerDisconnect.run(socket.id);
+            runNextRoundSetup(roomCode);
+        });
 
-        if (player) {
-            const currentStandings = stmts.getStandings.all(player.room_code);
-            io.to(player.room_code).emit('update-player-scores', { standings: currentStandings });
+        // --- JOIN EXISTING ROOM ---
+        socket.on('join-room', (data) => {
+            const { roomCode, nickname } = data || {};
+            if (!roomCode || !nickname) {
+                return socket.emit('error-message', 'Missing room code or nickname!');
+            }
+            upsertPlayerAndJoin(socket, roomCode, nickname);
+        });
+
+        // --- SUBMIT GUESS ---
+        socket.on('submit-guess', (data) => {
+            const guess = data ? data.guess : null;
+            const player = stmts.getPlayerBySocket.get(socket.id);
+            if (!player || player.has_guessed === 1 || player.attempts >= MAX_ATTEMPTS) return;
+
+            const room = stmts.getRoom.get(player.room_code);
+            if (!room || room.game_state !== 'PLAYING' || !room.current_word) return;
+
+            stmts.incrementAttempts.run(socket.id);
+            const updatedAttempts = player.attempts + 1;
+            const cleanGuess = typeof guess === 'string' ? guess.trim().toUpperCase() : '';
+            const isCorrect = cleanGuess === room.current_word.toUpperCase();
+
+            if (isCorrect) {
+                const fastestSolver = stmts.getCorrectCountThisRound.get(player.room_code);
+                const pointsAwarded = (!fastestSolver || fastestSolver.count === 0) ? 100 : 50;
+
+                stmts.updatePlayerCorrectGuess.run(pointsAwarded, socket.id);
+                
+                socket.emit('guess-result', { 
+                    success: true, 
+                    locked: true,
+                    feedback: `Correct! +${pointsAwarded} pts` 
+                });
+            } else {
+                const attemptsLeft = MAX_ATTEMPTS - updatedAttempts;
+
+                socket.emit('guess-result', { 
+                    success: false, 
+                    locked: attemptsLeft === 0,
+                    attemptsLeft,
+                    feedback: attemptsLeft > 0 
+                        ? `Wrong! ${attemptsLeft} attempt${attemptsLeft === 1 ? '' : 's'} remaining.` 
+                        : 'No attempts remaining! Locked out for this round 🔒'
+                });
+            }
+
+            const updatedStandings = stmts.getStandings.all(player.room_code);
+            io.to(player.room_code).emit('update-player-scores', { standings: updatedStandings });
 
             checkAndAdvanceRound(player.room_code);
-        }
-    });
-});
+        });
 
-module.exports = { app, server, io };
+        // --- DISCONNECT ---
+        socket.on('disconnect', () => {
+            const player = stmts.getPlayerBySocket.get(socket.id);
+            stmts.updatePlayerDisconnect.run(socket.id);
+
+            if (player) {
+                const currentStandings = stmts.getStandings.all(player.room_code);
+                io.to(player.room_code).emit('update-player-scores', { standings: currentStandings });
+
+                checkAndAdvanceRound(player.room_code);
+            }
+        });
+    });
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { 
+        generateRoomCode, 
+        scrambleWord, 
+        getPuzzleImage, 
+        getNextUniquePuzzle, 
+        runNextRoundSetup, 
+        checkAndAdvanceRound, 
+        upsertPlayerAndJoin 
+    };
+}
